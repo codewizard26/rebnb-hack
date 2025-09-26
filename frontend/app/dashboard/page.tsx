@@ -9,14 +9,39 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useAppStore } from "@/store/useAppStore";
 import { properties } from "@/data/properties";
+import { fetchProperties, Property } from "@/lib/api";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 
 import { Sidebar } from "@/components/sidebar";
 import { motion } from "framer-motion";
 
 export default function DashboardPage() {
-  const { bookings, listings, removeListing } = useAppStore();
-  const owned = properties; // dummy: treat all as owned
+  const { bookings } = useAppStore();
+  const [apiProperties, setApiProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch properties from API
+  useEffect(() => {
+    const loadProperties = async () => {
+      try {
+        setLoading(true);
+        const fetchedProperties = await fetchProperties();
+        setApiProperties(fetchedProperties);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch properties');
+        console.error('Error fetching properties:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProperties();
+  }, []);
+
+  const owned = apiProperties; // Use API properties instead of dummy data
   const preBooked = bookings.filter(
     (b) => b.status === "prebooked" || b.status === "rerented"
   );
@@ -94,59 +119,76 @@ export default function DashboardPage() {
                 </Link>
               </div>
 
-              {listings.length > 0 && (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {listings.map((l) => (
+
+              {loading && (
+                <div className="text-center py-8">
+                  <div className="text-sky-400">Loading properties...</div>
+                </div>
+              )}
+
+              {error && (
+                <div className="text-center py-8">
+                  <div className="text-red-400">Error: {error}</div>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="mt-2 text-sm text-sky-400 hover:underline"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {!loading && !error && owned.length === 0 && (
+                <div className="text-center py-8">
+                  <div className="text-gray-400">No properties found.</div>
+                </div>
+              )}
+
+              {!loading && !error && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {owned.map((p) => (
                     <motion.div
-                      key={l.id}
-                      whileHover={{ scale: 1.02 }}
-                      className="relative rounded-2xl border-2 border-sky-500/30 bg-black/30 text-white hover:bg-sky-500/20 hover:border-sky-500 transition shadow-md shadow-sky-500/20 p-4"
+                      key={p.id}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="cursor-pointer"
                     >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-semibold text-white">{l.title}</p>
-                          <p className="text-xs text-gray-300">
-                            {l.city} • ${l.rent}/night
-                          </p>
+                      <Link href={`/dashboard/${p.property_id}`}>
+                        <div className="rounded-2xl border-2 border-sky-500/30 bg-black/30 text-white hover:bg-sky-500/20 hover:border-sky-500 transition shadow-md shadow-sky-500/20 overflow-hidden">
+                          {/* Image */}
+                          <div className="aspect-video bg-gray-800/50 flex items-center justify-center">
+                            {p.image ? (
+                              <img
+                                src={p.image}
+                                alt={p.property_name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                }}
+                              />
+                            ) : null}
+                            <div className={`${p.image ? 'hidden' : ''} text-gray-500 text-center`}>
+                              <div className="text-4xl mb-2">🏠</div>
+                              <div className="text-sm">No Image</div>
+                            </div>
+                          </div>
+
+                          {/* Content */}
+                          <div className="p-4">
+                            <h3 className="font-semibold text-lg text-white truncate">
+                              {p.property_name}
+                            </h3>
+                            <p className="text-sm text-gray-400 mt-1">
+                              Click to view details
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex gap-3">
-                          <Link
-                            href={`/property/${l.id}`}
-                            className="text-sm font-medium underline hover:text-sky-400"
-                          >
-                            View
-                          </Link>
-                          <button
-                            onClick={() => removeListing(l.id)}
-                            className="text-sm text-rose-500 hover:underline"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
+                      </Link>
                     </motion.div>
                   ))}
                 </div>
               )}
-
-              {owned.map((p) => (
-                <motion.div
-                  key={p.id}
-                  whileHover={{ scale: 1.02 }}
-                  className="flex items-center justify-between rounded-2xl border-2 border-sky-500/30 bg-black/30 text-white hover:bg-sky-500/20 hover:border-sky-500 transition shadow-md shadow-sky-500/20 p-4"
-                >
-                  <div>
-                    <p className="font-medium">{p.title}</p>
-                    <p className="text-sm text-gray-300">Rent set: ${p.rent}</p>
-                  </div>
-                  <Link
-                    className="text-sm font-medium underline hover:text-sky-400"
-                    href={`/property/${p.id}`}
-                  >
-                    Manage
-                  </Link>
-                </motion.div>
-              ))}
             </TabsContent>
 
             {/* Broker Tab */}

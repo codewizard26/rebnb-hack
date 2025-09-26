@@ -10,7 +10,7 @@ DEPLOYER=$(cast wallet address $PRIVATE_KEY)
 
 export TOKEN_NAME="AirbnbProperty"
 export TOKEN_SYMBOL="ABNB"
-export BASE_URI="https://example.com/metadata/"
+export BASE_URI="https://api.rebnb.sumitdhiman.in/metadata/"
 
 echo "🚀 Deploying contracts to unichain (Chain ID: $CHAIN_ID)..."
 echo "Deployer address: $DEPLOYER"

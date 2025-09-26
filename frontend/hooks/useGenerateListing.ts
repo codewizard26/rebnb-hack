@@ -48,7 +48,7 @@ export const createListing = async (data: ICreatePropertyRequest): Promise<ICrea
     }
 
     try {
-        const response = await axios.post('http://10.20.23.172:8080/api/v1/create-listing', {
+        const response = await axios.post('https://api.rebnb.sumitdhiman.in/api/v1/create-listing', {
             propertyId: data.propertyId,
             date: data.date,
             rentPrice: data.rentPrice,

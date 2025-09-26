@@ -15,6 +15,19 @@ export interface CreatePropertyResponse {
     data?: any;
 }
 
+export interface Property {
+    id: string;
+    property_id: string;
+    ipfs_hash: string;
+    wallet_address: string;
+    property_name: string;
+    property_address: string;
+    description: string;
+    image: string;
+    created_at: string;
+    updated_at: string;
+}
+
 // Generate a property ID greater than 1
 export const generatePropertyId = (): string => {
     // Generate a random number between 2 and 999999 to ensure it's always > 1
@@ -53,6 +66,17 @@ export const createProperty = async (data: CreatePropertyRequest): Promise<Creat
             success: false,
             message: error.response?.data?.message || error.message || 'Failed to create property'
         };
+    }
+};
+
+// Fetch properties from the API
+export const fetchProperties = async (): Promise<Property[]> => {
+    try {
+        const response = await axios.get('https://api.rebnb.sumitdhiman.in/api/v1/properties');
+        return response.data;
+    } catch (error: any) {
+        console.error('Failed to fetch properties:', error.message);
+        throw new Error(error.response?.data?.message || error.message || 'Failed to fetch properties');
     }
 };
 

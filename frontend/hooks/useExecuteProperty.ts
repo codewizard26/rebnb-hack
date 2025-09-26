@@ -23,7 +23,7 @@ const useWalletStore = {
 const EvmConfig = {
     rpc_urls: {
         default: {
-            http: ["https://unichain-sepolia-rpc.publicnode.com"] // Changed from wss to https
+            http: ["https://unichain-sepolia-rpc.publicnode.com"]
         }
     }
 };
