@@ -1,0 +1,29 @@
+{
+  "name": "validator",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.ts",
+  "scripts": {
+    "start": "tsx index.ts",
+    "dev": "tsx watch index.ts",
+    "validate": "tsx index.ts",
+    "text": "tsx index.ts text",
+    "image": "tsx index.ts image",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.16.0",
+  "dependencies": {
+    "@hashgraph/sdk": "^2.73.2",
+    "@langchain/core": "^0.3.77",
+    "@langchain/openai": "^0.6.13",
+    "dotenv": "^17.2.2",
+    "hedera-agent-kit": "^3.2.0",
+    "langchain": "^0.3.34"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0"
+  }
+}
