@@ -31,4 +31,11 @@ async function main() {
 }
 
 // main().catch(console.error);
-validateImage("https://drive.google.com/uc?export=view&id=13YMcpVKiXP4IqRFQUgrjEciYY1fq9fMF", "Validate this property listing image");
+
+// Test image validation
+// console.log("=== Testing Image Validation ===");
+// validateImage("https://drive.google.com/uc?export=view&id=13YMcpVKiXP4IqRFQUgrjEciYY1fq9fMF", "Validate this property listing image");
+
+// Test text validation
+// console.log("\n=== Testing Text Validation ===");
+// validateText("A 2BHK room set with funitures included only for 50000");

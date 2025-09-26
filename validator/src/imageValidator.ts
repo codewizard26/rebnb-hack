@@ -3,7 +3,7 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AgentExecutor, createToolCallingAgent } from 'langchain/agents';
 import { Client, PrivateKey } from '@hashgraph/sdk';
 import { HederaLangchainToolkit, coreAccountPlugin } from 'hedera-agent-kit';
-import { system_prompt } from './system_prompt';
+import { image_system_prompt } from './system_prompt';
 import { createLLM, ValidationResult } from './sharedUtils';
 
 // Function for image validation using ImagePromptTemplate
@@ -35,7 +35,7 @@ export async function validateImage(imageInput: string, textPrompt: string): Pro
 
   // Build prompt template for multimodal input
   const prompt = ChatPromptTemplate.fromMessages([
-    ["system", system_prompt],
+    ["system", image_system_prompt],
     ["placeholder", "{chat_history}"],
     [
       "human",

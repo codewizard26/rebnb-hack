@@ -3,7 +3,7 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AgentExecutor, createToolCallingAgent } from 'langchain/agents';
 import { Client, PrivateKey } from '@hashgraph/sdk';
 import { HederaLangchainToolkit, coreAccountPlugin } from 'hedera-agent-kit';
-import { system_prompt } from './system_prompt';
+import { text_system_prompt } from './system_prompt';
 import { createLLM, ValidationResult } from './sharedUtils';
 
 // Function for text-only validation
@@ -34,10 +34,8 @@ export async function validateText(textPrompt: string): Promise<ValidationResult
 
   // Build prompt template for text-only validation
   const prompt = ChatPromptTemplate.fromMessages([
-    ["system", system_prompt],
-    ["placeholder", "{chat_history}"],
-    ["human", "{input}"],
-    ["placeholder", "{agent_scratchpad}"],
+    ["system", text_system_prompt],
+    ["human", "Validate this text: {input}"],
   ]);
 
   // Tools from Hedera toolkit
