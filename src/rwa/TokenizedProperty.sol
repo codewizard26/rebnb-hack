@@ -16,11 +16,10 @@ contract TokenizedProperty is ERC721, Ownable, ITokenizedProperty {
     address private _marketplace;
     mapping(uint256 propertyId => address date_token) public date_tokens;
 
-    constructor(
-        string memory name_,
-        string memory symbol_,
-        string memory baseTokenURI_
-    ) ERC721(name_, symbol_) Ownable(msg.sender) {
+    constructor(string memory name_, string memory symbol_, string memory baseTokenURI_)
+        ERC721(name_, symbol_)
+        Ownable(msg.sender)
+    {
         _baseTokenURI = baseTokenURI_;
     }
 
@@ -37,20 +36,10 @@ contract TokenizedProperty is ERC721, Ownable, ITokenizedProperty {
     }
 
     function mint(address to, uint256 propertyId) external returns (uint256) {
-        require(
-            msg.sender == owner() || msg.sender == _marketplace,
-            "Not owner or marketplace"
-        );
+        require(msg.sender == owner() || msg.sender == _marketplace, "Not owner or marketplace");
         _mint(to, propertyId);
-        date_tokens[propertyId] = address(
-            new TokenizedPropertyDate(
-                name(),
-                symbol(),
-                address(this),
-                propertyId,
-                msg.sender
-            )
-        );
+        date_tokens[propertyId] =
+            address(new TokenizedPropertyDate(name(), symbol(), address(this), propertyId, msg.sender));
         return propertyId;
     }
 
@@ -66,12 +55,7 @@ contract TokenizedProperty is ERC721, Ownable, ITokenizedProperty {
         return _marketplace;
     }
 
-    function isApprovedForAll(
-        address owner,
-        address operator
-    ) public view override(ERC721, IERC721) returns (bool) {
-        return
-            msg.sender == _marketplace ||
-            ERC721.isApprovedForAll(owner, operator);
+    function isApprovedForAll(address owner, address operator) public view override(ERC721, IERC721) returns (bool) {
+        return msg.sender == _marketplace || ERC721.isApprovedForAll(owner, operator);
     }
 }

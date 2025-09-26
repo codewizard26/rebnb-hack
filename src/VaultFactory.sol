@@ -57,34 +57,19 @@ contract ListingContract {
     }
 
     function createListing(CreateListingParams memory params) public {
-        require(
-            params.bookingDate > block.timestamp,
-            "Booking date is in the past"
-        );
+        require(params.bookingDate > block.timestamp, "Booking date is in the past");
         uint256 normalizedBookingDate = params.bookingDate / 86400;
-        string memory listingDateId = string.concat(
-            params.propertyId.toString(),
-            ":",
-            normalizedBookingDate.toString()
-        );
+        string memory listingDateId = string.concat(params.propertyId.toString(), ":", normalizedBookingDate.toString());
 
         uint256 latestReRentId = propertyToLatestReRentId[listingDateId];
         if (latestReRentId != 0) {
-            string memory prevListingId = string.concat(
-                listingDateId,
-                ":",
-                latestReRentId.toString()
-            );
+            string memory prevListingId = string.concat(listingDateId, ":", latestReRentId.toString());
             BookingInfo memory booking = propertyBooking[prevListingId];
             VaultEscrow(booking.vault).disableDirectBooking();
         }
         latestReRentId += 1;
         propertyToLatestReRentId[listingDateId] = latestReRentId;
-        string memory listingId = string.concat(
-            listingDateId,
-            ":",
-            latestReRentId.toString()
-        );
+        string memory listingId = string.concat(listingDateId, ":", latestReRentId.toString());
         propertyListing[listingId] = Listing({
             propertyId: params.propertyId,
             reRentId: latestReRentId,
