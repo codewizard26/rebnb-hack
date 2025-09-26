@@ -13,3 +13,6 @@ docs/
 # Dotenv file
 .env
 .env.local
+
+# Node modules
+node_modules/

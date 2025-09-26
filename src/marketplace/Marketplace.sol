@@ -16,6 +16,8 @@ contract Marketplace is Ownable {
         // Booking Config
         uint256 bookingPrice;
         uint256 bookingSecurity;
+        // Split Config
+        uint256 cumulativeSplitAmount;
     }
 
     struct ListingSplit {
@@ -62,7 +64,8 @@ contract Marketplace is Ownable {
             rentPrice: rentPrice,
             rentSecurity: rentSecurity,
             bookingPrice: bookingPrice,
-            bookingSecurity: bookingSecurity
+            bookingSecurity: bookingSecurity,
+            cumulativeSplitAmount: 0
         });
         ListingSplit[] memory splits = new ListingSplit[](0);
         listingSplits[propertyId][date] = splits;
@@ -85,14 +88,17 @@ contract Marketplace is Ownable {
         ITokenizedPropertyDate dateToken = ITokenizedPropertyDate(propertyToken.date_token(propertyId));
         require(dateToken.ownerOf(date) == msg.sender, "Unauthorized");
 
+        Listing memory listing = listings[propertyId][date];
+
         listings[propertyId][date] = Listing({
             creator: msg.sender,
-            propertyId: propertyId,
-            date: date,
+            propertyId: listing.propertyId,
+            date: listing.date,
             rentPrice: params.rentPrice,
             rentSecurity: params.rentSecurity,
             bookingPrice: params.bookingPrice,
-            bookingSecurity: params.bookingSecurity
+            bookingSecurity: params.bookingSecurity,
+            cumulativeSplitAmount: listing.cumulativeSplitAmount
         });
     }
 
@@ -135,6 +141,13 @@ contract Marketplace is Ownable {
         // Transfer security deposit to seller
         bool success = payable(token_owner).send(listing.rentSecurity);
         require(success, "Transfer failed");
+
+        uint256 splitAmount = 0;
+        if (listing.cumulativeSplitAmount < listing.rentPrice) {
+            splitAmount = listing.rentPrice - listing.cumulativeSplitAmount;
+        }
+        listing.cumulativeSplitAmount += splitAmount;
+        listings[propertyId][date] = listing;
 
         // Add the current owner to the listing splits after deducting the security deposit as its already transafered to token owner
         listingSplits[propertyId][date].push(ListingSplit({receiver: token_owner, amount: listing.rentPrice}));
@@ -179,9 +192,10 @@ contract Marketplace is Ownable {
         // Split the booking among all the renters. Currently is simple linear split with first renter given preference, we plan to make it more shared based split so everyone can minimize risk
         ListingSplit[] memory splits = listingSplits[propertyId][date];
         for (uint256 i = 0; i < splits.length; i++) {
-            uint256 amount = splits[i].amount;
+            uint256 expected = splits[i].amount;
+            uint256 amount = expected;
             if (amountToSplit == 0) {
-                emit SettlePayment(splits[i].receiver, propertyId, date, 0);
+                emit SettlePayment(splits[i].receiver, propertyId, date, expected, 0);
                 emit SettleFee(splits[i].receiver, propertyId, date, 0);
                 continue;
             }
@@ -194,11 +208,15 @@ contract Marketplace is Ownable {
             // Transfer amount to renter
             bool success = payable(splits[i].receiver).send(amount);
             require(success, "Transfer failed");
-            emit SettlePayment(splits[i].receiver, propertyId, date, amount);
+            emit SettlePayment(splits[i].receiver, propertyId, date, expected, amount);
             // Transfer fee to owner
             success = payable(owner()).send(fee);
             require(success, "Transfer failed");
             emit SettleFee(splits[i].receiver, propertyId, date, fee);
+        }
+        uint256 expected_current = 0;
+        if (listing.cumulativeSplitAmount < listing.bookingPrice) {
+            expected_current = listing.bookingPrice - listing.cumulativeSplitAmount;
         }
         // Transfer remaining amount to last renter
         if (amountToSplit > 0) {

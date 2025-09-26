@@ -1,0 +1,29 @@
+{
+  "name": "validator",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.ts",
+  "scripts": {
+    "start": "tsx index.ts",
+    "dev": "tsx watch index.ts",
+    "validate": "tsx index.ts",
+    "text": "tsx index.ts text",
+    "image": "tsx index.ts image",
+    "example": "tsx example.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.16.0",
+  "dependencies": {
+    "@langchain/core": "^0.3.77",
+    "@langchain/openai": "^0.6.13",
+    "dotenv": "^17.2.2",
+    "langchain": "^0.3.34"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.7.0"
+  }
+}
