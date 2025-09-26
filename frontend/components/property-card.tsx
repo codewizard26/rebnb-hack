@@ -154,7 +154,7 @@ export function PropertyCard({ property }: { property: Property }) {
         </CardContent>
         <CardFooter className="flex items-center justify-between gap-2 p-4">
           <Link href={`/property/${property.id}`} className="flex-1">
-            <Button className="w-full bg-gradient-to-r from-indigo-500 to-pink-500 text-white shadow hover:shadow-lg transition-all duration-300">
+            <Button className="w-full bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow hover:shadow-lg transition-all duration-300">
               View Details
             </Button>
           </Link>
