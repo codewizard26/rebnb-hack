@@ -10,8 +10,7 @@ import {SelfStructs} from "@selfxyz/contracts/contracts/libraries/SelfStructs.so
 /// @notice Test script for deployed ProofOfHuman contract
 contract TestProofOfHuman is BaseScript {
     // Deployed contract address
-    address constant DEPLOYED_CONTRACT =
-        0xf52E363c92945E350bC2515A948EB5A722d52EA6;
+    address constant DEPLOYED_CONTRACT = 0xf52E363c92945E350bC2515A948EB5A722d52EA6;
 
     /// @notice Test the deployed contract
     function run() public view {
@@ -43,14 +42,12 @@ contract TestProofOfHuman is BaseScript {
         testAddresses[1] = address(0xdEad000000000000000000000000000000000000);
         testAddresses[2] = owner;
 
-        for (uint i = 0; i < testAddresses.length; i++) {
+        for (uint256 i = 0; i < testAddresses.length; i++) {
             address testAddr = testAddresses[i];
             console.log("Testing address:", testAddr);
 
             // Note: isVerified() emits events, so we skip in view context
-            console.log(
-                "  - Verification status check skipped (requires transaction)"
-            );
+            console.log("  - Verification status check skipped (requires transaction)");
 
             uint256 timestamp = proofOfHuman.getVerificationTimestamp(testAddr);
             console.log("  - Verification timestamp:", timestamp);
@@ -67,46 +64,22 @@ contract TestProofOfHuman is BaseScript {
         // Test verification configuration
         console.log("\n=== VERIFICATION CONFIGURATION ===");
 
-        SelfStructs.VerificationConfigV2 memory config = proofOfHuman
-            .getVerificationConfig();
+        SelfStructs.VerificationConfigV2 memory config = proofOfHuman.getVerificationConfig();
         console.log("Verification Config:");
-        console.log(
-            "  - Older than enabled:",
-            config.olderThanEnabled ? "true" : "false"
-        );
+        console.log("  - Older than enabled:", config.olderThanEnabled ? "true" : "false");
         console.log("  - Older than:", config.olderThan);
-        console.log(
-            "  - Forbidden countries enabled:",
-            config.forbiddenCountriesEnabled ? "true" : "false"
-        );
-        console.log(
-            "  - Forbidden countries count:",
-            config.forbiddenCountriesListPacked.length
-        );
+        console.log("  - Forbidden countries enabled:", config.forbiddenCountriesEnabled ? "true" : "false");
+        console.log("  - Forbidden countries count:", config.forbiddenCountriesListPacked.length);
 
         // Print OFAC settings (3 modes)
         console.log("  - OFAC Settings:");
-        console.log(
-            "    - Passport No OFAC:",
-            config.ofacEnabled[0] ? "true" : "false"
-        );
-        console.log(
-            "    - Name+DOB OFAC:",
-            config.ofacEnabled[1] ? "true" : "false"
-        );
-        console.log(
-            "    - Name+YOB OFAC:",
-            config.ofacEnabled[2] ? "true" : "false"
-        );
+        console.log("    - Passport No OFAC:", config.ofacEnabled[0] ? "true" : "false");
+        console.log("    - Name+DOB OFAC:", config.ofacEnabled[1] ? "true" : "false");
+        console.log("    - Name+YOB OFAC:", config.ofacEnabled[2] ? "true" : "false");
 
         // Print packed forbidden countries
-        for (uint i = 0; i < config.forbiddenCountriesListPacked.length; i++) {
-            console.log(
-                "  - Forbidden countries packed[",
-                i,
-                "]:",
-                config.forbiddenCountriesListPacked[i]
-            );
+        for (uint256 i = 0; i < config.forbiddenCountriesListPacked.length; i++) {
+            console.log("  - Forbidden countries packed[", i, "]:", config.forbiddenCountriesListPacked[i]);
         }
 
         console.log("\n=== CONTRACT TEST COMPLETED ===");

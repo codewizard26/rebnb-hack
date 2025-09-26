@@ -54,30 +54,17 @@ contract ProofOfHuman is SelfVerificationRoot {
     );
 
     event ScopeUpdated(
-        uint256 indexed oldScope,
-        uint256 indexed newScope,
-        address indexed updatedBy,
-        uint256 timestamp
+        uint256 indexed oldScope, uint256 indexed newScope, address indexed updatedBy, uint256 timestamp
     );
 
     event VerificationConfigUpdated(
-        bytes32 indexed oldConfigId,
-        bytes32 indexed newConfigId,
-        address indexed updatedBy,
-        uint256 timestamp
+        bytes32 indexed oldConfigId, bytes32 indexed newConfigId, address indexed updatedBy, uint256 timestamp
     );
 
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner,
-        uint256 timestamp
-    );
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner, uint256 timestamp);
 
     event VerificationStatusQueried(
-        address indexed queriedAddress,
-        bool isVerified,
-        address indexed queriedBy,
-        uint256 timestamp
+        address indexed queriedAddress, bool isVerified, address indexed queriedBy, uint256 timestamp
     );
 
     /// @notice Custom errors
@@ -106,12 +93,9 @@ contract ProofOfHuman is SelfVerificationRoot {
         owner = msg.sender;
 
         // Format and set verification configuration
-        verificationConfig = SelfUtils.formatVerificationConfigV2(
-            _verificationConfig
-        );
-        verificationConfigId = IIdentityVerificationHubV2(
-            identityVerificationHubV2Address
-        ).setVerificationConfigV2(verificationConfig);
+        verificationConfig = SelfUtils.formatVerificationConfigV2(_verificationConfig);
+        verificationConfigId =
+            IIdentityVerificationHubV2(identityVerificationHubV2Address).setVerificationConfigV2(verificationConfig);
 
         // Emit comprehensive deployment event
         emit ContractDeployed(
@@ -130,10 +114,10 @@ contract ProofOfHuman is SelfVerificationRoot {
      * @param output The verification output from the hub
      * @param userData The user data passed through verification
      */
-    function customVerificationHook(
-        ISelfVerificationRoot.GenericDiscloseOutputV2 memory output,
-        bytes memory userData
-    ) internal override {
+    function customVerificationHook(ISelfVerificationRoot.GenericDiscloseOutputV2 memory output, bytes memory userData)
+        internal
+        override
+    {
         address userAddress = address(uint160(output.userIdentifier));
 
         // Store verification data
@@ -147,20 +131,9 @@ contract ProofOfHuman is SelfVerificationRoot {
         lastUserAddress = userAddress;
 
         // Emit comprehensive verification events
-        emit HumanVerified(
-            userAddress,
-            output.userIdentifier,
-            block.timestamp,
-            scope(),
-            output
-        );
+        emit HumanVerified(userAddress, output.userIdentifier, block.timestamp, scope(), output);
 
-        emit VerificationCompleted(
-            output,
-            userData,
-            userAddress,
-            block.timestamp
-        );
+        emit VerificationCompleted(output, userData, userAddress, block.timestamp);
     }
 
     /**
@@ -171,12 +144,7 @@ contract ProofOfHuman is SelfVerificationRoot {
         bytes32 oldConfigId = verificationConfigId;
         verificationConfigId = configId;
 
-        emit VerificationConfigUpdated(
-            oldConfigId,
-            configId,
-            msg.sender,
-            block.timestamp
-        );
+        emit VerificationConfigUpdated(oldConfigId, configId, msg.sender, block.timestamp);
     }
 
     /**
@@ -184,8 +152,8 @@ contract ProofOfHuman is SelfVerificationRoot {
      * @return The verification configuration ID
      */
     function getConfigId(
-        bytes32 /* destinationChainId */,
-        bytes32 /* userIdentifier */,
+        bytes32, /* destinationChainId */
+        bytes32, /* userIdentifier */
         bytes memory /* userDefinedData */
     ) public view override returns (bytes32) {
         return verificationConfigId;
@@ -196,18 +164,11 @@ contract ProofOfHuman is SelfVerificationRoot {
      * @param human Address to check
      * @return isVerifiedStatus True if verified, false otherwise
      */
-    function isVerified(
-        address human
-    ) external returns (bool isVerifiedStatus) {
+    function isVerified(address human) external returns (bool isVerifiedStatus) {
         isVerifiedStatus = verifiedHumans[human];
 
         // Emit query event for transparency and monitoring
-        emit VerificationStatusQueried(
-            human,
-            isVerifiedStatus,
-            msg.sender,
-            block.timestamp
-        );
+        emit VerificationStatusQueried(human, isVerifiedStatus, msg.sender, block.timestamp);
 
         return isVerifiedStatus;
     }
@@ -217,9 +178,7 @@ contract ProofOfHuman is SelfVerificationRoot {
      * @param human Address to check
      * @return The timestamp when the address was verified (0 if not verified)
      */
-    function getVerificationTimestamp(
-        address human
-    ) external view returns (uint256) {
+    function getVerificationTimestamp(address human) external view returns (uint256) {
         return verificationTimestamps[human];
     }
 
@@ -247,11 +206,7 @@ contract ProofOfHuman is SelfVerificationRoot {
      * @notice Get current verification configuration
      * @return The current verification configuration
      */
-    function getVerificationConfig()
-        external
-        view
-        returns (SelfStructs.VerificationConfigV2 memory)
-    {
+    function getVerificationConfig() external view returns (SelfStructs.VerificationConfigV2 memory) {
         return verificationConfig;
     }
 

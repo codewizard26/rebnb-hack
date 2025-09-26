@@ -16,12 +16,7 @@ contract DeployProofOfHuman is BaseScript {
     error ConfigurationFailed();
 
     // Events for deployment tracking
-    event DeploymentStarted(
-        address indexed deployer,
-        address indexed hubAddress,
-        uint256 scope,
-        uint256 timestamp
-    );
+    event DeploymentStarted(address indexed deployer, address indexed hubAddress, uint256 scope, uint256 timestamp);
 
     event DeploymentCompleted(
         address indexed contractAddress,
@@ -33,11 +28,7 @@ contract DeployProofOfHuman is BaseScript {
     );
 
     event VerificationConfigCreated(
-        uint256 olderThan,
-        string[] forbiddenCountries,
-        bool ofacEnabled,
-        bytes32 configId,
-        uint256 timestamp
+        uint256 olderThan, string[] forbiddenCountries, bool ofacEnabled, bytes32 configId, uint256 timestamp
     );
 
     /// @notice Main deployment function using Self Protocol deployment
@@ -54,24 +45,17 @@ contract DeployProofOfHuman is BaseScript {
         if (hubAddress == address(0)) revert InvalidHubAddress();
 
         // Emit deployment start event
-        emit DeploymentStarted(
-            msg.sender,
-            hubAddress,
-            deploymentScope,
-            block.timestamp
-        );
+        emit DeploymentStarted(msg.sender, hubAddress, deploymentScope, block.timestamp);
 
         // Configure verification requirements
         string[] memory forbiddenCountries = new string[](1);
         forbiddenCountries[0] = CountryCodes.UNITED_STATES;
 
-        SelfUtils.UnformattedVerificationConfigV2
-            memory verificationConfig = SelfUtils
-                .UnformattedVerificationConfigV2({
-                    olderThan: 18,
-                    forbiddenCountries: forbiddenCountries,
-                    ofacEnabled: false
-                });
+        SelfUtils.UnformattedVerificationConfigV2 memory verificationConfig = SelfUtils.UnformattedVerificationConfigV2({
+            olderThan: 18,
+            forbiddenCountries: forbiddenCountries,
+            ofacEnabled: false
+        });
 
         // Log configuration details
         console.log("=== DEPLOYMENT CONFIGURATION ===");
@@ -81,16 +65,12 @@ contract DeployProofOfHuman is BaseScript {
         console.log("Minimum Age:", verificationConfig.olderThan);
         console.log("OFAC Enabled:", verificationConfig.ofacEnabled);
         console.log("Forbidden Countries Count:", forbiddenCountries.length);
-        for (uint i = 0; i < forbiddenCountries.length; i++) {
+        for (uint256 i = 0; i < forbiddenCountries.length; i++) {
             console.log("  - Forbidden Country:", forbiddenCountries[i]);
         }
 
         // Deploy the contract using Self Protocol infrastructure
-        proofOfHuman = new ProofOfHuman(
-            hubAddress,
-            deploymentScope,
-            verificationConfig
-        );
+        proofOfHuman = new ProofOfHuman(hubAddress, deploymentScope, verificationConfig);
 
         // Verify deployment was successful
         if (address(proofOfHuman) == address(0)) revert DeploymentFailed();
@@ -100,11 +80,7 @@ contract DeployProofOfHuman is BaseScript {
 
         // Emit configuration created event
         emit VerificationConfigCreated(
-            verificationConfig.olderThan,
-            forbiddenCountries,
-            verificationConfig.ofacEnabled,
-            configId,
-            block.timestamp
+            verificationConfig.olderThan, forbiddenCountries, verificationConfig.ofacEnabled, configId, block.timestamp
         );
 
         // Log comprehensive deployment information
@@ -118,23 +94,13 @@ contract DeployProofOfHuman is BaseScript {
 
         // Emit deployment completed event
         emit DeploymentCompleted(
-            address(proofOfHuman),
-            msg.sender,
-            hubAddress,
-            deploymentScope,
-            configId,
-            block.timestamp
+            address(proofOfHuman), msg.sender, hubAddress, deploymentScope, configId, block.timestamp
         );
 
         console.log("=== DEPLOYMENT SUCCESS ===");
         console.log("Contract is ready for Self Protocol verification!");
-        console.log(
-            "Users can now verify their identity through the Self Protocol flow."
-        );
-        console.log(
-            "Frontend should use contract address:",
-            address(proofOfHuman)
-        );
+        console.log("Users can now verify their identity through the Self Protocol flow.");
+        console.log("Frontend should use contract address:", address(proofOfHuman));
         console.log("and configuration ID:", vm.toString(configId));
     }
 }

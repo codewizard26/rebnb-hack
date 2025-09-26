@@ -11,18 +11,11 @@ contract Deploy is Script {
     function run() external {
         string memory name = vm.envOr("TOKEN_NAME", string("AirbnbProperty"));
         string memory symbol = vm.envOr("TOKEN_SYMBOL", string("ABNB"));
-        string memory baseURI = vm.envOr(
-            "BASE_URI",
-            string("https://example.com/metadata/")
-        );
+        string memory baseURI = vm.envOr("BASE_URI", string("https://example.com/metadata/"));
 
         vm.startBroadcast();
 
-        TokenizedProperty property = new TokenizedProperty(
-            name,
-            symbol,
-            baseURI
-        );
+        TokenizedProperty property = new TokenizedProperty(name, symbol, baseURI);
         Marketplace marketplace = new Marketplace(address(property));
 
         // Set marketplace on property so it can mint and manage date tokens

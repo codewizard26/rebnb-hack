@@ -51,13 +51,8 @@ contract Marketplace is Ownable {
         uint256 bookingSecurity
     ) external {
         require(date >= block.timestamp / 86400, "Date is in the past");
-        ITokenizedPropertyDate dateToken = ITokenizedPropertyDate(
-            propertyToken.date_token(propertyId)
-        );
-        require(
-            propertyToken.ownerOf(propertyId) == msg.sender,
-            "Not property owner"
-        );
+        ITokenizedPropertyDate dateToken = ITokenizedPropertyDate(propertyToken.date_token(propertyId));
+        require(propertyToken.ownerOf(propertyId) == msg.sender, "Not property owner");
         dateToken.mint(msg.sender, date);
 
         listings[propertyId][date] = Listing({
@@ -80,27 +75,14 @@ contract Marketplace is Ownable {
         uint256 bookingSecurity;
     }
 
-    function updateListing(
-        uint256 propertyId,
-        uint256 date,
-        UpdateListingParams memory params
-    ) external {
+    function updateListing(uint256 propertyId, uint256 date, UpdateListingParams memory params) external {
         _updateListing(propertyId, date, params);
     }
 
-    function _updateListing(
-        uint256 propertyId,
-        uint256 date,
-        UpdateListingParams memory params
-    ) internal {
-        require(
-            listingBooked[propertyId][date].isBooked == false,
-            "Cannot update booked listing"
-        );
+    function _updateListing(uint256 propertyId, uint256 date, UpdateListingParams memory params) internal {
+        require(listingBooked[propertyId][date].isBooked == false, "Cannot update booked listing");
 
-        ITokenizedPropertyDate dateToken = ITokenizedPropertyDate(
-            propertyToken.date_token(propertyId)
-        );
+        ITokenizedPropertyDate dateToken = ITokenizedPropertyDate(propertyToken.date_token(propertyId));
         require(dateToken.ownerOf(date) == msg.sender, "Unauthorized");
 
         listings[propertyId][date] = Listing({
@@ -114,24 +96,15 @@ contract Marketplace is Ownable {
         });
     }
 
-    function getListing(
-        uint256 propertyId,
-        uint256 date
-    ) external view returns (Listing memory) {
+    function getListing(uint256 propertyId, uint256 date) external view returns (Listing memory) {
         return listings[propertyId][date];
     }
 
-    function isListingActive(
-        uint256 propertyId,
-        uint256 date
-    ) external view returns (bool) {
+    function isListingActive(uint256 propertyId, uint256 date) external view returns (bool) {
         return _isListingActive(propertyId, date);
     }
 
-    function _isListingActive(
-        uint256 propertyId,
-        uint256 date
-    ) internal view returns (bool) {
+    function _isListingActive(uint256 propertyId, uint256 date) internal view returns (bool) {
         if (listingBooked[propertyId][date].isBooked) {
             return false;
         }
@@ -146,19 +119,13 @@ contract Marketplace is Ownable {
         return true;
     }
 
-    function rentListing(
-        uint256 propertyId,
-        uint256 date,
-        UpdateListingParams memory updateParams
-    ) external payable {
+    function rentListing(uint256 propertyId, uint256 date, UpdateListingParams memory updateParams) external payable {
         require(_isListingActive(propertyId, date), "Listing is not active");
         Listing memory listing = listings[propertyId][date];
 
         require(msg.value == listing.rentSecurity, "Incorrect rent security");
 
-        ITokenizedPropertyDate dateToken = ITokenizedPropertyDate(
-            propertyToken.date_token(propertyId)
-        );
+        ITokenizedPropertyDate dateToken = ITokenizedPropertyDate(propertyToken.date_token(propertyId));
 
         address token_owner = dateToken.ownerOf(date);
         require(token_owner != msg.sender, "Cannot rent your own listing");
@@ -170,9 +137,7 @@ contract Marketplace is Ownable {
         require(success, "Transfer failed");
 
         // Add the current owner to the listing splits after deducting the security deposit as its already transafered to token owner
-        listingSplits[propertyId][date].push(
-            ListingSplit({receiver: token_owner, amount: listing.rentPrice})
-        );
+        listingSplits[propertyId][date].push(ListingSplit({receiver: token_owner, amount: listing.rentPrice}));
 
         // Update listing with new rent price and security deposit
         _updateListing(propertyId, date, updateParams);
@@ -182,43 +147,26 @@ contract Marketplace is Ownable {
         require(_isListingActive(propertyId, date), "Listing is not active");
         Listing memory listing = listings[propertyId][date];
         require(listing.bookingPrice > 0, "Booking price is not available");
-        require(
-            msg.value == listing.bookingSecurity,
-            "Incorrect booking price"
-        );
+        require(msg.value == listing.bookingSecurity, "Incorrect booking price");
 
-        ITokenizedPropertyDate dateToken = ITokenizedPropertyDate(
-            propertyToken.date_token(propertyId)
-        );
+        ITokenizedPropertyDate dateToken = ITokenizedPropertyDate(propertyToken.date_token(propertyId));
 
         address token_owner = dateToken.ownerOf(date);
 
-        listingBooked[propertyId][date] = BookingInfo({
-            receiver: token_owner,
-            booker: msg.sender,
-            isBooked: true
-        });
+        listingBooked[propertyId][date] = BookingInfo({receiver: token_owner, booker: msg.sender, isBooked: true});
         // Transfer date token to renter
         dateToken.transferFrom(token_owner, msg.sender, date);
 
         // Transfer security deposit to seller
         bool success = payable(token_owner).send(listing.bookingSecurity);
         require(success, "Transfer failed");
-        emit SettleSecurity(
-            token_owner,
-            propertyId,
-            date,
-            listing.bookingSecurity
-        );
+        emit SettleSecurity(token_owner, propertyId, date, listing.bookingSecurity);
     }
 
     function unlockRoom(uint256 propertyId, uint256 date) external payable {
         // Only allow to unlock room for the same day or future
         require(date >= block.timestamp / 86400, "Date is in the past");
-        require(
-            listingCompleted[propertyId][date] == false,
-            "Listing is already completed"
-        );
+        require(listingCompleted[propertyId][date] == false, "Listing is already completed");
 
         BookingInfo memory booking = listingBooked[propertyId][date];
         require(booking.isBooked, "Listing is not booked");
@@ -259,56 +207,31 @@ contract Marketplace is Ownable {
             // Transfer amount to renter
             bool success = payable(booking.receiver).send(amountToSplit);
             require(success, "Transfer failed");
-            emit SettlePayment(
-                booking.receiver,
-                propertyId,
-                date,
-                amountToSplit
-            );
+            emit SettlePayment(booking.receiver, propertyId, date, amountToSplit);
             // Transfer fee to owner
             success = payable(owner()).send(fee);
             require(success, "Transfer failed");
             emit SettleFee(booking.receiver, propertyId, date, fee);
-        }else{
+        } else {
             emit SettlePayment(booking.receiver, propertyId, date, 0);
             emit SettleFee(booking.receiver, propertyId, date, 0);
         }
     }
 
     function cancelBooking(uint256 propertyId, uint256 date) external payable {
-        require(
-            listingCompleted[propertyId][date] == false,
-            "Listing is completed"
-        );
+        require(listingCompleted[propertyId][date] == false, "Listing is completed");
 
         BookingInfo memory booking = listingBooked[propertyId][date];
         require(booking.isBooked, "Listing is not booked");
         delete listingBooked[propertyId][date];
 
-        ITokenizedPropertyDate dateToken = ITokenizedPropertyDate(
-            propertyToken.date_token(propertyId)
-        );
+        ITokenizedPropertyDate dateToken = ITokenizedPropertyDate(propertyToken.date_token(propertyId));
         dateToken.transferFrom(msg.sender, booking.receiver, date);
     }
 
-    event SettlePayment(
-        address indexed receiver,
-        uint256 indexed propertyId,
-        uint256 indexed date,
-        uint256 amount
-    );
+    event SettlePayment(address indexed receiver, uint256 indexed propertyId, uint256 indexed date, uint256 amount);
 
-    event SettleSecurity(
-        address indexed receiver,
-        uint256 indexed propertyId,
-        uint256 indexed date,
-        uint256 amount
-    );
+    event SettleSecurity(address indexed receiver, uint256 indexed propertyId, uint256 indexed date, uint256 amount);
 
-    event SettleFee(
-        address indexed payer,
-        uint256 indexed propertyId,
-        uint256 indexed date,
-        uint256 amount
-    );
+    event SettleFee(address indexed payer, uint256 indexed propertyId, uint256 indexed date, uint256 amount);
 }

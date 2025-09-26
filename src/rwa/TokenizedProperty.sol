@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {ERC721} from "../../lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
-import {IERC721} from "../../lib/openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
-import {Ownable} from "../../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
-import {ECDSA} from "../../lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
-import {MessageHashUtils} from "../../lib/openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 import {ITokenizedProperty} from "./ITokenizedProperty.sol";
 
@@ -16,11 +16,10 @@ contract TokenizedProperty is ERC721, Ownable, ITokenizedProperty {
     address private _marketplace;
     mapping(uint256 propertyId => address date_token) public date_tokens;
 
-    constructor(
-        string memory name_,
-        string memory symbol_,
-        string memory baseTokenURI_
-    ) ERC721(name_, symbol_) Ownable(msg.sender) {
+    constructor(string memory name_, string memory symbol_, string memory baseTokenURI_)
+        ERC721(name_, symbol_)
+        Ownable(msg.sender)
+    {
         _baseTokenURI = baseTokenURI_;
     }
 
@@ -37,20 +36,10 @@ contract TokenizedProperty is ERC721, Ownable, ITokenizedProperty {
     }
 
     function mint(address to, uint256 propertyId) external returns (uint256) {
-        require(
-            msg.sender == owner() || msg.sender == _marketplace,
-            "Not owner or marketplace"
-        );
+        require(msg.sender == owner() || msg.sender == _marketplace, "Not owner or marketplace");
         _mint(to, propertyId);
-        date_tokens[propertyId] = address(
-            new TokenizedPropertyDate(
-                name(),
-                symbol(),
-                address(this),
-                propertyId,
-                msg.sender
-            )
-        );
+        date_tokens[propertyId] =
+            address(new TokenizedPropertyDate(name(), symbol(), address(this), propertyId, msg.sender));
         return propertyId;
     }
 
@@ -66,12 +55,7 @@ contract TokenizedProperty is ERC721, Ownable, ITokenizedProperty {
         return _marketplace;
     }
 
-    function isApprovedForAll(
-        address owner,
-        address operator
-    ) public view override(ERC721, IERC721) returns (bool) {
-        return
-            msg.sender == _marketplace ||
-            ERC721.isApprovedForAll(owner, operator);
+    function isApprovedForAll(address owner, address operator) public view override(ERC721, IERC721) returns (bool) {
+        return msg.sender == _marketplace || ERC721.isApprovedForAll(owner, operator);
     }
 }

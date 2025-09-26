@@ -5,8 +5,7 @@ libs = ["lib"]
 remappings = [
     "forge-std/=lib/forge-std/src/",
     "@selfxyz/contracts/contracts/=lib/self/contracts/contracts/",
-    "@openzeppelin/=lib/openzeppelin-contracts/",
-    "forge-std/=lib/forge-std/src/",
+    "@openzeppelin/=lib/openzeppelin-contracts/"
 ]
 via_ir = true
 optimizer = true

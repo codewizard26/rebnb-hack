@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {ERC721} from "../../lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
-import {IERC721} from "../../lib/openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
-import {Ownable} from "../../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
-import {ECDSA} from "../../lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
-import {MessageHashUtils} from "../../lib/openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 import {ITokenizedPropertyDate} from "./ITokenizedPropertyDate.sol";
 import {ITokenizedProperty} from "./ITokenizedProperty.sol";
@@ -16,6 +15,8 @@ import {ITokenizedProperty} from "./ITokenizedProperty.sol";
  * @dev This contract is used to mint tokenized property dates.
  */
 contract TokenizedPropertyDate is ERC721, Ownable, ITokenizedPropertyDate {
+    using Strings for uint256;
+
     ITokenizedProperty public immutable property_token;
     uint256 public property_id;
 
@@ -31,7 +32,7 @@ contract TokenizedPropertyDate is ERC721, Ownable, ITokenizedPropertyDate {
     }
 
     function _baseURI() internal view override returns (string memory) {
-        return property_token.baseURI();
+        return string.concat(property_token.baseURI(), property_id.toString(), "/");
     }
 
     function baseURI() external view returns (string memory) {
@@ -40,9 +41,8 @@ contract TokenizedPropertyDate is ERC721, Ownable, ITokenizedPropertyDate {
 
     function mint(address to, uint256 date) external returns (uint256) {
         require(
-            msg.sender == owner() ||
-                msg.sender == property_token.ownerOf(property_id) ||
-                msg.sender == property_token.marketplace(),
+            msg.sender == owner() || msg.sender == property_token.ownerOf(property_id)
+                || msg.sender == property_token.marketplace(),
             "Not owner or property owner or marketplace"
         );
         require(date >= block.timestamp / 86400, "Date must be in the future");
@@ -54,12 +54,7 @@ contract TokenizedPropertyDate is ERC721, Ownable, ITokenizedPropertyDate {
         return property_token.marketplace();
     }
 
-    function isApprovedForAll(
-        address owner,
-        address operator
-    ) public view override(ERC721, IERC721) returns (bool) {
-        return
-            msg.sender == _marketplace() ||
-            ERC721.isApprovedForAll(owner, operator);
+    function isApprovedForAll(address owner, address operator) public view override(ERC721, IERC721) returns (bool) {
+        return msg.sender == _marketplace() || ERC721.isApprovedForAll(owner, operator);
     }
 }
