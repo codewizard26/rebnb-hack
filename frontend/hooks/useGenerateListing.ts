@@ -37,7 +37,7 @@ export const generatePropertyId = (): string => {
 };
 
 // API function for creating property
-export const createProperty = async (data: ICreatePropertyRequest): Promise<ICreatePropertyResponse> => {
+export const createListing = async (data: ICreatePropertyRequest): Promise<ICreatePropertyResponse> => {
     // Validate property ID is greater than 1
     const propertyIdNum = parseInt(data.propertyId);
     if (isNaN(propertyIdNum) || propertyIdNum <= 1) {
@@ -78,9 +78,9 @@ export const createProperty = async (data: ICreatePropertyRequest): Promise<ICre
 
 
 // Hook for creating property
-export const useCreateProperty = () => {
+export const useCreateListing = () => {
     return useMutation({
-        mutationFn: createProperty,
+        mutationFn: createListing,
         onSuccess: (data) => {
             console.log('Property created successfully:', data);
         },

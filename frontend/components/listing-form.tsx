@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/store/useAppStore";
-import { useCreateProperty, generatePropertyId } from "@/hooks/useGenerateListing";
+import { generatePropertyId, useCreateListing } from "@/hooks/useGenerateListing";
 import { useCreatePropertyWithSigning } from "@/hooks/useExecuteProperty";
 
 // Function to post listing data to your backend
@@ -33,7 +33,7 @@ export function ListingForm() {
   const [txhash, setTxhash] = useState("");
   const [propertyId, setPropertyId] = useState("");
   const { mutateAsync: handleCreatePropertyForSigning } = useCreatePropertyWithSigning()
-  const { mutateAsync: handleCreateProperty, isPending: isCreatingProperty } = useCreateProperty();
+  const { mutateAsync: handleCreateListing, isPending: isCreatingProperty } = useCreateListing();
   const [txHash, setTxHash] = useState("");
   const [availableDate, setAvailableDate] = useState<string>("");
   const [availableDateTimestamp, setAvailableDateTimestamp] = useState<string>("0");
@@ -44,9 +44,30 @@ export function ListingForm() {
   const handleCreatePropertyClick = async () => {
     try {
       // Generate a property ID greater than 1
-      const newPropertyId = generatePropertyId();
 
-      const result = await handleCreateProperty({
+      const response = await fetch("http://10.20.23.172:8080/api/v1/create-property", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          property_name: name,
+          property_address: location,
+          description: "Property created via UI", // You can customize this or add a description field
+          to: "0xd81252d06C67A2f3cF3B377d9Aae5d827f14f3b1", // You may want to make this dynamic
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create property");
+      }
+
+      const data = await response.json();
+      const newPropertyId = data.property_id;
+      setPropertyId(newPropertyId); // Store the property_id in state for later use
+
+
+      const result = await handleCreateListing({
         propertyId: newPropertyId,
         date: availableDateTimestamp,
         rentPrice: rentPrice.toString(),
