@@ -6,6 +6,7 @@ import (
 	"rebnb/db"
 	gstorage "rebnb/rest/handlers/0g-storage"
 	"rebnb/rest/handlers/ipfs"
+	"rebnb/rest/handlers/token"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,11 +26,50 @@ func SetupRoutes(privateKey string, r *gin.Engine) {
 	// Initialize IPFS client
 	ipfsClient := ipfs.NewIPFSClient()
 
-	// Initialize ClickHouse client
-	_, err = db.NewClient(nil) // Uses environment variables
+	// Initialize MongoDB client
+	client, err := db.NewClient(nil) // Uses environment variables
 	if err != nil {
-		log.Printf("⚠️  Failed to initialize ClickHouse client: %v", err)
-		log.Println("ClickHouse endpoints will be disabled")
+		log.Printf("⚠️  Failed to initialize MongoDB client: %v", err)
+		log.Println("MongoDB endpoints will be disabled")
+	} else {
+		log.Printf("🔍 MongoDB client initialized successfully")
+
+		// Test basic connectivity
+		if err := client.Health(ctx); err != nil {
+			log.Printf("❌ MongoDB health check failed: %v", err)
+		} else {
+			log.Printf("✅ MongoDB health check passed")
+		}
+
+		// Get server info
+		if info, err := client.GetServerInfo(ctx); err != nil {
+			log.Printf("⚠️  Failed to get server info: %v", err)
+		} else {
+			log.Printf("🔍 MongoDB server info: %+v", info)
+		}
+
+		// Initialize collections
+		log.Printf("🔍 Attempting to initialize collections...")
+		if err := client.InitializeCollections(ctx); err != nil {
+			log.Printf("❌ Failed to initialize collections: %v", err)
+		} else {
+			log.Println("✅ Database collections initialized successfully")
+
+			// Verify collections were created
+			if collections, err := client.ListCollections(ctx); err != nil {
+				log.Printf("⚠️  Failed to get collection list: %v", err)
+			} else {
+				log.Printf("🔍 Available collections: %v", collections)
+			}
+
+			// Seed initial data
+			log.Printf("🔍 Attempting to seed initial data...")
+			if err := client.SeedInitialData(ctx); err != nil {
+				log.Printf("❌ Failed to seed initial data: %v", err)
+			} else {
+				log.Println("✅ Initial data seeded successfully")
+			}
+		}
 	}
 
 	// Initialize Gin router
@@ -75,5 +115,8 @@ func SetupRoutes(privateKey string, r *gin.Engine) {
 		// Legacy endpoints for backward compatibility
 		v1.POST("/upload", gstorage.HandleUploadFile(server))
 		v1.GET("/download/:root_hash", gstorage.HandleGetFile(server))
+
+		v1.POST("/create-property", token.CreateMintMessage)
+		v1.POST("/create-listing", token.CreateListing)
 	}
 }

@@ -3,220 +3,251 @@ package db
 import (
 	"context"
 	"fmt"
-	"strings"
+	"log"
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+// Contract represents a contract document in MongoDB
+type Contract struct {
+	ID              primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Type            string             `bson:"type" json:"type"`
+	ContractAddress string             `bson:"contract_address" json:"contract_address"`
+	CreatedAt       time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt       time.Time          `bson:"updated_at" json:"updated_at"`
+}
+
+// Chain represents a chain document in MongoDB
+type Chain struct {
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Chain     string             `bson:"chain" json:"chain"`
+	RPC       string             `bson:"rpc" json:"rpc"`
+	ChainID   string             `bson:"chain_id" json:"chain_id"`
+	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt time.Time          `bson:"updated_at" json:"updated_at"`
+}
 
 // QueryResult represents a query result with metadata
 type QueryResult struct {
-	Columns []string                 `json:"columns"`
-	Rows    []map[string]interface{} `json:"rows"`
-	Count   int                      `json:"count"`
+	Data  []map[string]interface{} `json:"data"`
+	Count int64                    `json:"count"`
 }
 
 // InsertResult represents an insert operation result
 type InsertResult struct {
-	RowsAffected int64 `json:"rows_affected"`
-	Error        error `json:"error,omitempty"`
+	InsertedCount int64                `json:"inserted_count"`
+	InsertedIDs   []primitive.ObjectID `json:"inserted_ids,omitempty"`
+	Error         error                `json:"error,omitempty"`
 }
 
-// Query executes a SELECT query and returns structured results
-func (c *Client) Query(ctx context.Context, query string, args ...interface{}) (*QueryResult, error) {
-	rows, err := c.db.Query(ctx, query, args...)
+// InitializeCollections creates the necessary collections and indexes if they don't exist
+func (c *Client) InitializeCollections(ctx context.Context) error {
+	// Create contracts collection with unique index on type
+	contractsCollection := c.GetCollection("contracts")
+
+	// Create unique index on type field
+	contractsIndexModel := mongo.IndexModel{
+		Keys:    bson.D{{Key: "type", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	}
+
+	if _, err := contractsCollection.Indexes().CreateOne(ctx, contractsIndexModel); err != nil {
+		// Index might already exist, log but don't fail
+		log.Printf("Info: contracts index creation: %v", err)
+	}
+
+	// Create chains collection with unique index on chain
+	chainsCollection := c.GetCollection("chains")
+
+	// Create unique index on chain field
+	chainsIndexModel := mongo.IndexModel{
+		Keys:    bson.D{{Key: "chain", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	}
+
+	if _, err := chainsCollection.Indexes().CreateOne(ctx, chainsIndexModel); err != nil {
+		// Index might already exist, log but don't fail
+		log.Printf("Info: chains index creation: %v", err)
+	}
+
+	return nil
+}
+
+// SeedInitialData inserts initial data into the collections
+func (c *Client) SeedInitialData(ctx context.Context) error {
+	now := time.Now()
+
+	// Check if contracts collection has data
+	contractsCollection := c.GetCollection("contracts")
+	contractCount, err := contractsCollection.CountDocuments(ctx, bson.D{})
 	if err != nil {
-		return nil, fmt.Errorf("query execution failed: %w", err)
-	}
-	defer rows.Close()
-
-	// Get column information
-	columns := rows.Columns()
-	columnTypes := rows.ColumnTypes()
-
-	result := &QueryResult{
-		Columns: make([]string, len(columns)),
-		Rows:    make([]map[string]interface{}, 0),
+		return fmt.Errorf("failed to check contracts count: %w", err)
 	}
 
-	// Copy column names
-	copy(result.Columns, columns)
-
-	// Process rows
-	for rows.Next() {
-		// Create slice to hold row values
-		values := make([]interface{}, len(columns))
-		valuePtrs := make([]interface{}, len(columns))
-
-		for i := range values {
-			valuePtrs[i] = &values[i]
+	// Insert initial contract data if collection is empty
+	if contractCount == 0 {
+		contracts := []interface{}{
+			Contract{
+				Type:            "marketplace",
+				ContractAddress: "0x...", // Replace with actual marketplace contract address
+				CreatedAt:       now,
+				UpdatedAt:       now,
+			},
+			Contract{
+				Type:            "property",
+				ContractAddress: "0x...", // Replace with actual property contract address
+				CreatedAt:       now,
+				UpdatedAt:       now,
+			},
 		}
 
-		// Scan row values
-		if err := rows.Scan(valuePtrs...); err != nil {
-			return nil, fmt.Errorf("row scan failed: %w", err)
+		if _, err := contractsCollection.InsertMany(ctx, contracts); err != nil {
+			return fmt.Errorf("failed to insert initial contracts: %w", err)
 		}
-
-		// Create row map
-		row := make(map[string]interface{})
-		for i, col := range columns {
-			// Handle different ClickHouse types
-			val := values[i]
-			if val != nil {
-				// Convert based on column type if needed
-				colType := columnTypes[i].DatabaseTypeName()
-				row[col] = convertClickHouseValue(val, colType)
-			} else {
-				row[col] = nil
-			}
-		}
-
-		result.Rows = append(result.Rows, row)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration failed: %w", err)
-	}
-
-	result.Count = len(result.Rows)
-	return result, nil
-}
-
-// QueryRow executes a query that returns a single row
-func (c *Client) QueryRow(ctx context.Context, query string, args ...interface{}) map[string]interface{} {
-	result, err := c.Query(ctx, query, args...)
-	if err != nil || len(result.Rows) == 0 {
-		return nil
-	}
-	return result.Rows[0]
-}
-
-// Exec executes a non-SELECT query (INSERT, UPDATE, DELETE, DDL)
-func (c *Client) Exec(ctx context.Context, query string, args ...interface{}) error {
-	return c.db.Exec(ctx, query, args...)
-}
-
-// Insert performs a batch insert operation
-func (c *Client) Insert(ctx context.Context, table string, columns []string, rows [][]interface{}) (*InsertResult, error) {
-	if len(columns) == 0 || len(rows) == 0 {
-		return &InsertResult{RowsAffected: 0}, nil
-	}
-
-	// Build INSERT query
-	placeholders := make([]string, len(columns))
-	for i := range placeholders {
-		placeholders[i] = "?"
-	}
-
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
-		table,
-		strings.Join(columns, ", "),
-		strings.Join(placeholders, ", "))
-
-	// Prepare batch
-	batch, err := c.db.PrepareBatch(ctx, query)
+	// Check if chains collection has data
+	chainsCollection := c.GetCollection("chains")
+	chainCount, err := chainsCollection.CountDocuments(ctx, bson.D{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to prepare batch: %w", err)
+		return fmt.Errorf("failed to check chains count: %w", err)
 	}
 
-	// Add rows to batch
-	for _, row := range rows {
-		if len(row) != len(columns) {
-			return nil, fmt.Errorf("row has %d values but expected %d columns", len(row), len(columns))
+	// Insert initial chain data if collection is empty
+	if chainCount == 0 {
+		chains := []interface{}{
+			Chain{
+				Chain:     "unichain",
+				RPC:       "https://sepolia.unichain.org",
+				ChainID:   "1301",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
 		}
 
-		if err := batch.Append(row...); err != nil {
-			return nil, fmt.Errorf("failed to append row to batch: %w", err)
+		if _, err := chainsCollection.InsertMany(ctx, chains); err != nil {
+			return fmt.Errorf("failed to insert initial chains: %w", err)
 		}
 	}
 
-	// Execute batch
-	if err := batch.Send(); err != nil {
-		return &InsertResult{Error: fmt.Errorf("batch send failed: %w", err)}, err
+	return nil
+}
+
+// GetContract retrieves a contract by type
+func (c *Client) GetContract(ctx context.Context, contractType string) (*Contract, error) {
+	collection := c.GetCollection("contracts")
+
+	var contract Contract
+	filter := bson.D{{Key: "type", Value: contractType}}
+
+	if err := collection.FindOne(ctx, filter).Decode(&contract); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("contract type '%s' not found", contractType)
+		}
+		return nil, fmt.Errorf("failed to get contract: %w", err)
 	}
 
-	return &InsertResult{RowsAffected: int64(len(rows))}, nil
+	return &contract, nil
 }
 
-// CreateTable creates a table with the given schema
-func (c *Client) CreateTable(ctx context.Context, tableName string, schema string) error {
-	query := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", tableName, schema)
-	return c.Exec(ctx, query)
-}
+// GetChain retrieves a chain by name
+func (c *Client) GetChain(ctx context.Context, chainName string) (*Chain, error) {
+	collection := c.GetCollection("chains")
 
-// DropTable drops a table
-func (c *Client) DropTable(ctx context.Context, tableName string) error {
-	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)
-	return c.Exec(ctx, query)
-}
+	var chain Chain
+	filter := bson.D{{Key: "chain", Value: chainName}}
 
-// TableExists checks if a table exists
-func (c *Client) TableExists(ctx context.Context, tableName string) (bool, error) {
-	query := "SELECT count() FROM system.tables WHERE database = currentDatabase() AND name = ?"
-
-	var count uint64
-	if err := c.db.QueryRow(ctx, query, tableName).Scan(&count); err != nil {
-		return false, fmt.Errorf("failed to check table existence: %w", err)
+	if err := collection.FindOne(ctx, filter).Decode(&chain); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("chain '%s' not found", chainName)
+		}
+		return nil, fmt.Errorf("failed to get chain: %w", err)
 	}
 
-	return count > 0, nil
+	return &chain, nil
 }
 
-// GetTables returns a list of all tables in the current database
-func (c *Client) GetTables(ctx context.Context) ([]string, error) {
-	query := "SELECT name FROM system.tables WHERE database = currentDatabase() ORDER BY name"
+// UpdateContractAddress updates a contract address in the database
+func (c *Client) UpdateContractAddress(ctx context.Context, contractType, contractAddress string) error {
+	collection := c.GetCollection("contracts")
 
-	rows, err := c.db.Query(ctx, query)
+	filter := bson.D{{Key: "type", Value: contractType}}
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "contract_address", Value: contractAddress},
+			{Key: "updated_at", Value: time.Now()},
+		}},
+	}
+
+	result, err := collection.UpdateOne(ctx, filter, update)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tables: %w", err)
-	}
-	defer rows.Close()
-
-	var tables []string
-	for rows.Next() {
-		var tableName string
-		if err := rows.Scan(&tableName); err != nil {
-			return nil, fmt.Errorf("failed to scan table name: %w", err)
-		}
-		tables = append(tables, tableName)
+		return fmt.Errorf("failed to update contract address: %w", err)
 	}
 
-	return tables, nil
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("contract type '%s' not found", contractType)
+	}
+
+	return nil
 }
 
-// GetTableSchema returns the schema of a table
-func (c *Client) GetTableSchema(ctx context.Context, tableName string) ([]map[string]interface{}, error) {
-	query := `SELECT name, type, default_kind, default_expression, comment 
-			  FROM system.columns 
-			  WHERE database = currentDatabase() AND table = ? 
-			  ORDER BY position`
+// InsertOrUpdateContract inserts a new contract or updates existing one
+func (c *Client) InsertOrUpdateContract(ctx context.Context, contractType, contractAddress string) error {
+	collection := c.GetCollection("contracts")
+	now := time.Now()
 
-	result, err := c.Query(ctx, query, tableName)
+	filter := bson.D{{Key: "type", Value: contractType}}
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "type", Value: contractType},
+			{Key: "contract_address", Value: contractAddress},
+			{Key: "updated_at", Value: now},
+		}},
+		{Key: "$setOnInsert", Value: bson.D{
+			{Key: "created_at", Value: now},
+		}},
+	}
+
+	opts := options.Update().SetUpsert(true)
+
+	if _, err := collection.UpdateOne(ctx, filter, update, opts); err != nil {
+		return fmt.Errorf("failed to insert or update contract: %w", err)
+	}
+
+	return nil
+}
+
+// ListCollections returns a list of all collections in the current database
+func (c *Client) ListCollections(ctx context.Context) ([]string, error) {
+	names, err := c.Database.ListCollectionNames(ctx, bson.D{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get table schema: %w", err)
+		return nil, fmt.Errorf("failed to list collections: %w", err)
 	}
-
-	return result.Rows, nil
+	return names, nil
 }
 
-// OptimizeTable optimizes a table (ClickHouse specific)
-func (c *Client) OptimizeTable(ctx context.Context, tableName string) error {
-	query := fmt.Sprintf("OPTIMIZE TABLE %s", tableName)
-	return c.Exec(ctx, query)
+// CollectionExists checks if a collection exists
+func (c *Client) CollectionExists(ctx context.Context, collectionName string) (bool, error) {
+	collections, err := c.ListCollections(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	for _, name := range collections {
+		if name == collectionName {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
-// convertClickHouseValue converts ClickHouse values to appropriate Go types
-func convertClickHouseValue(val interface{}, colType string) interface{} {
-	// Handle common ClickHouse type conversions
-	switch colType {
-	case "DateTime", "DateTime64":
-		// ClickHouse DateTime values are usually already time.Time
-		return val
-	case "Date":
-		// ClickHouse Date values are usually already time.Time
-		return val
-	case "UUID":
-		// UUID values are usually strings
-		return val
-	default:
-		// For most other types, return as-is
-		return val
-	}
+// DropCollection drops a collection
+func (c *Client) DropCollection(ctx context.Context, collectionName string) error {
+	collection := c.GetCollection(collectionName)
+	return collection.Drop(ctx)
 }
