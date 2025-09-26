@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { ethers } from "ethers";
 
 // Contract addresses from your deployment
-const MARKETPLACE_ADDRESS = "0x1F474fe70F593E452F976F59BF2Cf990585E12FD";
+const MARKETPLACE_ADDRESS = "0x2432dc3847a04945fd80c0a81b4ebdb7c948d93f";
 
 // Marketplace contract ABI for the specific functions we need
 const MARKETPLACE_ABI = [

@@ -1,11 +1,11 @@
 import { Address } from "viem";
 
-// Contract addresses - deployed on 0g testnet (Chain ID: 16602)
+// Contract addresses - deployed on Unichain testnet (Chain ID: 1301)
 export const CONTRACTS = {
-  // TokenizedProperty contract address on 0g testnet
-  TOKENIZED_PROPERTY: "0x66BEd1DeDf7D459168Db564D97294366cA777142" as Address,
-  // Marketplace contract address on 0g testnet
-  MARKETPLACE: "0x1F474fe70F593E452F976F59BF2Cf990585E12FD" as Address,
+  // TokenizedProperty contract address on Unichain testnet
+  TOKENIZED_PROPERTY: "0x7d0176b839a37d6d1e0c1b814f056d39091baec6" as Address,
+  // Marketplace contract address on Unichain testnet
+  MARKETPLACE: "0x2432dc3847a04945fd80c0a81b4ebdb7c948d93f" as Address,
   // Payments are now done in native 0G tokens (no ERC20 token needed)
 } as const;
 
