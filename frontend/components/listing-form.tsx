@@ -1,106 +1,99 @@
 "use client";
 
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon } from "lucide-react";
-import { addDays } from "date-fns";
 import { useAppStore } from "@/store/useAppStore";
+import { useGenerateListingMsg } from "@/hooks/useGenerateListing";
+
+// Function to post listing data to your backend
+async function postListing(listing: any) {
+  const res = await fetch("/api/listings", {  // Replace with your endpoint
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(listing),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to create listing");
+  }
+
+  return res.json();
+}
 
 export function ListingForm() {
-    const addListing = useAppStore((s) => s.addListing);
-    const [title, setTitle] = useState("");
-    const [city, setCity] = useState("");
-    const [type, setType] = useState<"apartment" | "house" | "studio">("apartment");
-    const [description, setDescription] = useState("");
-    const [rent, setRent] = useState(150);
-    const [deposit, setDeposit] = useState(300);
-    const [image, setImage] = useState("");
-    const [open, setOpen] = useState(false);
-    const [from, setFrom] = useState<Date | undefined>();
-    const [to, setTo] = useState<Date | undefined>();
+  const addListing = useAppStore((s) => s.addListing);
 
-    const submit = () => {
-        const id = `u-${Date.now()}`;
-        addListing({
-            id,
-            title,
-            description,
-            city,
-            type,
-            rent,
-            deposit,
-            image: image || "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=1200&auto=format&fit=crop",
-            startDate: from?.getTime(),
-            endDate: to?.getTime(),
-        });
-        setTitle(""); setCity(""); setDescription(""); setRent(150); setDeposit(300); setImage(""); setFrom(undefined); setTo(undefined);
-    };
+  const [name, setName] = useState("");
+  const [image, setImage] = useState("");
+  const [rentPrice, setRentPrice] = useState(0);
+  const [rentSecurity, setRentSecurity] = useState(0);
+  const [bookingPrice, setBookingPrice] = useState(0);
+  const [bookingSecurity, setBookingSecurity] = useState(0);
+  const [location, setLocation] = useState("");
+  const [listingMsg,setListingMsg]=useState("");
+  const [txhash,setTxhash]=useState("");
+  const{mutateAsync:handleListingMsg}=useGenerateListingMsg();
+  const{mutateAsync:handleStartList}=useHandleStart
+  // React Query mutation
 
-    return (
-        <Card className="rounded-2xl bg-white/70 shadow backdrop-blur dark:bg-white/10">
-            <CardHeader>
-                <CardTitle>Create Listing</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                    <Label htmlFor="title">Title</Label>
-                    <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="city">City</Label>
-                    <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="type">Type</Label>
-                    <Input id="type" value={type} onChange={(e) => setType(e.target.value as any)} placeholder="apartment | house | studio" />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="image">Image URL</Label>
-                    <Input id="image" value={image} onChange={(e) => setImage(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="rent">Rent / night</Label>
-                    <Input id="rent" type="number" value={rent} onChange={(e) => setRent(Number(e.target.value || 0))} />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="deposit">Deposit</Label>
-                    <Input id="deposit" type="number" value={deposit} onChange={(e) => setDeposit(Number(e.target.value || 0))} />
-                </div>
-                <div className="md:col-span-2 space-y-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} />
-                </div>
-                <div className="md:col-span-2 space-y-2">
-                    <Label>Available dates</Label>
-                    <Popover open={open} onOpenChange={setOpen}>
-                        <PopoverTrigger asChild>
-                            <Button variant="outline" className="gap-2">
-                                <CalendarIcon className="h-4 w-4" />
-                                {from ? `${from.toLocaleDateString()} - ${to?.toLocaleDateString() ?? ""}` : "Pick dates"}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <div className="p-3">
-                                <Calendar
-                                    mode="range"
-                                    selected={{ from, to }}
-                                    onSelect={(range) => { setFrom(range?.from); setTo(range?.to ?? (range?.from ? addDays(range.from, 1) : undefined)); }}
-                                    numberOfMonths={2}
-                                />
-                            </div>
-                        </PopoverContent>
-                    </Popover>
-                </div>
-                <div className="md:col-span-2">
-                    <Button onClick={submit} className="bg-blue-600 text-white hover:bg-blue-500">Create Listing</Button>
-                </div>
-            </CardContent>
-        </Card>
-    );
+
+
+  
+  const handleSubmit=async ()=>{
+    try{
+        const tx= await handleListingMsg({
+            name:name,
+            image:image,
+            rentPrice:rentPrice,
+            rentSecurity:rentSecurity,
+            bookingPrice:bookingPrice,
+            bookingSecurity:bookingSecurity,
+            currentLocation:location
+        })
+        handleList(tx)
+    }catch(error){
+        console.error("error")
+    }
+  }
+
+  const handleList = (listMsg:any) => {
+    try {
+        const hash = await handleStartList({
+            msg:listMsg
+        })
+        setTxhash(hash);
+    }catch(error){
+        console.error("error",error);
+    }
+    
+
+
+  };
+
+  return (
+    <Card className="rounded-2xl border-2 border-sky-500/30 bg-black/30 text-white shadow-md shadow-sky-500/20 backdrop-blur transition p">
+      <CardHeader>
+        <CardTitle className="text-xl font-semibold text-sky-400">
+          Create Listing
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {/* Form fields here (same as your original code) */}
+        <div className="md:col-span-2">
+          <Button
+            onClick={handleSubmit}
+            className="w-full rounded-xl bg-sky-600 text-white hover:bg-sky-500 transition shadow-md shadow-sky-500/40"
+          >
+            Create Listing
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }

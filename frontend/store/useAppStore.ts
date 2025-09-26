@@ -26,37 +26,19 @@ export type BlockchainBooking = {
   updatedAt: number; // timestamp
 };
 
-export type LocalBooking = {
+
+export type Listing = {
   id: string;
-  propertyId: string;
-  status: "pending" | "confirmed" | "completed" | "cancelled" | "disputed";
-  userRole: "broker" | "renter";
-  amount: number; // in PYUSD
-  createdAt: number;
-  checkIn?: number;
-  checkOut?: number;
-  transactionHash?: string;
-  blockchainBookingId?: bigint;
-};
+  name: string;
+  image: string;
+  rentPrice: number;
+  rentSecurity: number;
+  bookingPrice: number;
+  bookingSecurity: number;
+  currentLocation: string;
 
-export type WalletState = {
-  isConnected: boolean;
-  address?: Address;
-  chainId?: number;
-  balance?: bigint; // PYUSD balance
-};
 
-export type TransactionState = {
-  hash?: string;
-  status: "idle" | "pending" | "confirming" | "confirmed" | "failed";
-  type?:
-    | "approve"
-    | "prebook"
-    | "finalize"
-    | "book-direct"
-    | "dispute"
-    | "evidence";
-  error?: string;
+
 };
 
 type AppState = {
