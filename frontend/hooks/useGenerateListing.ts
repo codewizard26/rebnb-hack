@@ -13,8 +13,13 @@ export interface ICreateListingMsg {
 }
 
 export interface ICreatePropertyRequest {
-    to: string;
-    propertyId: string;
+    "propertyId": string,
+    "date": string,
+    "rentPrice": string,
+    "rentSecurity": string,
+    "bookingPrice": string,
+    "bookingSecurity": string
+
 }
 
 export interface ICreatePropertyResponse {
@@ -43,9 +48,13 @@ export const createProperty = async (data: ICreatePropertyRequest): Promise<ICre
     }
 
     try {
-        const response = await axios.post('http://10.20.23.172:8080/api/v1/create-property', {
-            to: data.to,
-            propertyId: data.propertyId
+        const response = await axios.post('http://10.20.23.172:8080/api/v1/create-listing', {
+            propertyId: data.propertyId,
+            date: data.date,
+            rentPrice: data.rentPrice,
+            rentSecurity: data.rentSecurity,
+            bookingPrice: data.bookingPrice,
+            bookingSecurity: data.bookingSecurity
         }, {
             headers: {
                 'Content-Type': 'application/json'
@@ -80,20 +89,3 @@ export const useCreateProperty = () => {
         }
     });
 };
-
-export const useGenerateListingMsg = () => {
-    return useMutation({
-        mutationFn: async (data: ICreateListingMsg) => {
-            const msg = await axios.post("", {
-                propertyId: data.propertyId,
-                name: data.name,
-                image: data.image,
-                rentPrice: data.rentPrice,
-                rentSecurity: data.rentSecurity,
-                bookingPrice: data.bookingPrice,
-                bookingSecurity: data.bookingPrice,
-                currentLocation: data.currentLocation
-            })
-        }
-    })
-}

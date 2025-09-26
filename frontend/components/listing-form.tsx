@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/store/useAppStore";
-import { useGenerateListingMsg, useCreateProperty, generatePropertyId } from "@/hooks/useGenerateListing";
+import { useCreateProperty, generatePropertyId } from "@/hooks/useGenerateListing";
 import { useCreatePropertyWithSigning } from "@/hooks/useExecuteProperty";
 
 // Function to post listing data to your backend
@@ -32,10 +32,11 @@ export function ListingForm() {
   const [listingMsg, setListingMsg] = useState("");
   const [txhash, setTxhash] = useState("");
   const [propertyId, setPropertyId] = useState("");
-  const { mutateAsync: handleListingMsg } = useGenerateListingMsg();
   const { mutateAsync: handleCreatePropertyForSigning } = useCreatePropertyWithSigning()
   const { mutateAsync: handleCreateProperty, isPending: isCreatingProperty } = useCreateProperty();
   const [txHash, setTxHash] = useState("");
+  const [availableDate, setAvailableDate] = useState<string>("");
+  const [availableDateTimestamp, setAvailableDateTimestamp] = useState<string>("0");
   // const{mutateAsync:handleStartList}=useHandleStartListing()
   // React Query mutation
 
@@ -46,8 +47,12 @@ export function ListingForm() {
       const newPropertyId = generatePropertyId();
 
       const result = await handleCreateProperty({
-        to: "0xd81252d06C67A2f3cF3B377d9Aae5d827f14f3b1",
-        propertyId: newPropertyId
+        propertyId: newPropertyId,
+        date: availableDateTimestamp,
+        rentPrice: rentPrice.toString(),
+        rentSecurity: rentSecurity.toString(),
+        bookingPrice: bookingPrice.toString(),
+        bookingSecurity: bookingSecurity.toString()
       });
 
       if (result.success) {
@@ -68,7 +73,6 @@ export function ListingForm() {
         msg: swapMsg,
       });
       setTxHash(hash);
-      console.log("Swap Initiated:", hash);
 
 
     } catch (error) {
@@ -77,29 +81,29 @@ export function ListingForm() {
   };
 
 
-  const handleSubmit = async () => {
+  // const handleSubmit = async () => {
 
 
-    // need id here
-    const propertyId = ""
+  //   // need id here
+  //   const propertyId = ""
 
-    try {
-      const tx = await handleListingMsg({
-        propertyId: Math.random().toString(),
-        name: name,
-        image: image,
-        rentPrice: rentPrice,
-        rentSecurity: rentSecurity,
-        bookingPrice: bookingPrice,
-        bookingSecurity: bookingSecurity,
-        currentLocation: location
-      })
+  //   try {
+  //     const tx = await handleListingMsg({
+  //       propertyId: Math.random().toString(),
+  //       name: name,
+  //       image: image,
+  //       rentPrice: rentPrice,
+  //       rentSecurity: rentSecurity,
+  //       bookingPrice: bookingPrice,
+  //       bookingSecurity: bookingSecurity,
+  //       currentLocation: location
+  //     })
 
-      // handleList(tx)
-    } catch (error) {
-      console.error("error")
-    }
-  }
+  //     // handleList(tx)
+  //   } catch (error) {
+  //     console.error("error")
+  //   }
+  // }
 
   // const handleList = async (listMsg:any) => {
   //   try {
@@ -129,6 +133,20 @@ export function ListingForm() {
             id="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            className="rounded-xl bg-black/50 border-sky-500/30 focus:border-sky-500 focus:ring-sky-500 transition"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="availableDate">Available Date</Label>
+          <Input
+            id="availableDate"
+            type="date"
+            value={availableDate}
+            onChange={(e) => {
+              setAvailableDate(e.target.value);
+              setAvailableDateTimestamp(e.target.value ? new Date(e.target.value).getTime().toString() : "0");
+            }}
             className="rounded-xl bg-black/50 border-sky-500/30 focus:border-sky-500 focus:ring-sky-500 transition"
           />
         </div>
@@ -198,12 +216,7 @@ export function ListingForm() {
           >
             {isCreatingProperty ? "Creating Property..." : "Create Property"}
           </Button>
-          <Button
-            onClick={handleSubmit}
-            className="w-full rounded-xl bg-sky-600 text-white hover:bg-sky-500 transition shadow-md shadow-sky-500/40"
-          >
-            Create Listing
-          </Button>
+
         </div>
       </CardContent>
     </Card>
