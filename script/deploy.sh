@@ -2,13 +2,13 @@
 set -e
 
 # === CONFIG ===
-# RPC_URL="wss://unichain-sepolia-rpc.publicnode.com"
-# PRIVATE_KEY="d4163a9ae1d49c4a3d824677ed188fe1a30f5640880008655b04217b7dfdebac"
-# CHAIN_ID=1301
-
-RPC_URL="https://evmrpc-testnet.0g.ai"
+RPC_URL="https://sepolia.unichain.org"
 PRIVATE_KEY="d4163a9ae1d49c4a3d824677ed188fe1a30f5640880008655b04217b7dfdebac"
-CHAIN_ID=16602
+CHAIN_ID=1301
+
+# RPC_URL="https://evmrpc-testnet.0g.ai"
+# PRIVATE_KEY="d4163a9ae1d49c4a3d824677ed188fe1a30f5640880008655b04217b7dfdebac"
+# CHAIN_ID=16602
 
 DEPLOYER=$(cast wallet address $PRIVATE_KEY)
 

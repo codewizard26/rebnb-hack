@@ -13,7 +13,7 @@ interface CreatePropertyButtonProps {
 }
 
 export function CreatePropertyButton({
-    to = "0x66BEd1DeDf7D459168Db564D97294366cA777142",
+    to = "0x7d0176b839a37d6d1e0c1b814f056d39091baec6",
     propertyId,
     onSuccess,
     onError

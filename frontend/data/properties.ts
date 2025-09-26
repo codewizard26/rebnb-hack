@@ -31,7 +31,7 @@ export const properties: Property[] = [
     rent: 1,
     deposit: 0.1,
     owner: {
-      address: "0x66BEd1DeDf7D459168Db564D97294366cA777142",
+      address: "0x7d0176b839a37d6d1e0c1b814f056d39091baec6",
       ens: "alice.eth",
     },
     image:
@@ -95,7 +95,7 @@ export const properties: Property[] = [
     rent: 0.01,
     deposit: 0.1,
     owner: {
-      address: "0x1F474fe70F593E452F976F59BF2Cf990585E12FD",
+      address: "0x2432dc3847a04945fd80c0a81b4ebdb7c948d93f",
       ens: "bob.eth",
     },
     image:
