@@ -2,8 +2,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { validateText } from './src/chatValidator';
-import { validateImage } from './src/imageValidator';
+import { Validator } from './src/Validator';
 
 async function main() {
   // Get command line arguments
@@ -20,22 +19,43 @@ async function main() {
     process.exit(1);
   }
 
-  if (command === "text") {
-    await validateText(input);
-  } else if (command === "image") {
-    await validateImage(input, textPrompt);
-  } else {
-    console.error("❌ Invalid command. Use 'text' or 'image'");
-    process.exit(1);
+  const validator = new Validator();
+
+  try {
+    if (command === "text") {
+      await validator.validateText(input);
+    } else if (command === "image") {
+      await validator.validateImage(input, textPrompt);
+    } else {
+      console.error("❌ Invalid command. Use 'text' or 'image'");
+      process.exit(1);
+    }
+  } finally {
+    validator.close();
   }
 }
 
 // main().catch(console.error);
 
-// Test image validation
-// console.log("=== Testing Image Validation ===");
-// validateImage("https://drive.google.com/uc?export=view&id=13YMcpVKiXP4IqRFQUgrjEciYY1fq9fMF", "Validate this property listing image");
+// Test both validators
+async function testValidators() {
+  const validator = new Validator();
 
-// Test text validation
-// console.log("\n=== Testing Text Validation ===");
-// validateText("A 2BHK room set with funitures included only for 50000");
+  try {
+    // Test image validation
+    console.log("=== Testing Image Validation ===");
+    await validator.validateImage(
+      "https://drive.google.com/uc?export=view&id=13YMcpVKiXP4IqRFQUgrjEciYY1fq9fMF", 
+      "Validate this property listing image"
+    );
+
+    // Test text validation
+    console.log("\n=== Testing Text Validation ===");
+    await validator.validateText("A 2BHK room set with funitures included only for 50000");
+  } finally {
+    validator.close();
+  }
+}
+
+// Run tests
+testValidators().catch(console.error);
