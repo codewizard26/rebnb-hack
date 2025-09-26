@@ -3,9 +3,14 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { useAppStore } from "@/store/useAppStore";
 import { properties } from "@/data/properties";
 import Link from "next/link";
+
 import { Sidebar } from "@/components/sidebar";
 import { motion } from "framer-motion";
 
@@ -181,7 +186,7 @@ export default function DashboardPage() {
                   </motion.div>
                 );
               })}
-            </TabsContent>
+           </TabsContent>
           </Tabs>
         </div>
       </main>
