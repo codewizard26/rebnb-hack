@@ -20,6 +20,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { generatePropertyId, useCreateListing } from "@/hooks/useGenerateListing";
 import { useCreatePropertyWithSigning } from "@/hooks/useExecuteProperty";
 import { useAccount } from "wagmi";
+import { toast } from "sonner";
 
 // Function to post listing data to your backend
 
@@ -73,60 +74,134 @@ export function ListingForm() {
 
   const handleCreatePropertyClick = async () => {
     try {
-      // Create FormData for multipart form submission
-      const formData = new FormData();
-      formData.append("property_name", name);
-      formData.append("property_address", location);
-      formData.append("description", "Property created via UI");
-      formData.append("to", address || "0x0000000000000000000000000000000000000000"); // Use connected wallet address
+      // Validate required fields
+      if (!image) {
+        toast.error("Please select an image for your property");
+        return; 
+      }
 
-      // Add image file if selected
-      if (image) {
+      if (!name.trim()) {
+        toast.error("Please enter a property name");
+        return;
+      }
+
+      if (!location.trim()) {
+        toast.error("Please enter a property location");
+        return;
+      }
+
+      // Create blob URL for image validation
+      const imageBlobUrl = URL.createObjectURL(image);
+      
+      try {
+        // Validate text content via API
+        const textValidationResponse = await fetch('/api/validate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'text',
+            data: `Name of the listing: ${name}, location of the listing: ${location}`
+          })
+        });
+
+        if (!textValidationResponse.ok) {
+          throw new Error('Text validation failed');
+        }
+
+        const textValidation = await textValidationResponse.json();
+        
+        // Check text validation result
+        if (textValidation.error || textValidation.valid === false) {
+          toast.error(`Text validation failed: ${textValidation.error || 'Invalid property information'}`);
+          URL.revokeObjectURL(imageBlobUrl);
+          return;
+        }
+
+        // Validate image content via API
+        const imageValidationResponse = await fetch('/api/validate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'image',
+            data: imageBlobUrl,
+            prompt: `Validate the image of the listing: ${name} at ${location}`
+          })
+        });
+
+        if (!imageValidationResponse.ok) {
+          throw new Error('Image validation failed');
+        }
+
+        const imageValidation = await imageValidationResponse.json();
+        
+        // Check image validation result
+        if (imageValidation.error || imageValidation.valid === false) {
+          toast.error(`Image validation failed: ${imageValidation.error || 'Invalid or inappropriate image'}`);
+          URL.revokeObjectURL(imageBlobUrl);
+          return;
+        }
+
+        // Show success message for validation
+        toast.success("Property information validated successfully!");
+
+        // Create FormData for multipart form submission
+        const formData = new FormData();
+        formData.append("property_name", name);
+        formData.append("property_address", location);
+        formData.append("description", "Property created via UI");
+        formData.append("to", address || "0x0000000000000000000000000000000000000000");
         formData.append("image", image);
-      }
 
-      const response = await fetch("https://api.rebnb.sumitdhiman.in/api/v1/create-property", {
-        method: "POST",
-        // Don't set Content-Type header - let browser set it with boundary for multipart
-        body: formData,
-      });
+        const response = await fetch("https://api.rebnb.sumitdhiman.in/api/v1/create-property", {
+          method: "POST",
+          body: formData,
+        });
 
-      if (!response.ok) {
-        throw new Error("Failed to create property");
-      }
+        if (!response.ok) {
+          throw new Error("Failed to create property");
+        }
 
-      const data = await response.json();
-      const newPropertyId = data.property_id;
-      setPropertyId(newPropertyId); // Store the property_id in state for later use
+        const data = await response.json();
+        const newPropertyId = data.property_id;
+        setPropertyId(newPropertyId);
 
+        console.log("🏠 Creating listing with:");
+        console.log("- Property ID:", newPropertyId);
+        console.log("- Date string:", availableDate);
+        console.log("- Date timestamp (days since epoch):", availableDateTimestamp);
+        console.log("- Rent Price:", rentPrice);
+        console.log("- Rent Security:", rentSecurity);
+        console.log("- Booking Price:", bookingPrice);
+        console.log("- Booking Security:", bookingSecurity);
 
-      console.log("🏠 Creating listing with:");
-      console.log("- Property ID:", newPropertyId);
-      console.log("- Date string:", availableDate);
-      console.log("- Date timestamp (days since epoch):", availableDateTimestamp);
-      console.log("- Rent Price:", rentPrice);
-      console.log("- Rent Security:", rentSecurity);
-      console.log("- Booking Price:", bookingPrice);
-      console.log("- Booking Security:", bookingSecurity);
+        const result = await handleCreateListing({
+          propertyId: newPropertyId,
+          date: availableDateTimestamp,
+          rentPrice: rentPrice.toString(),
+          rentSecurity: rentSecurity.toString(),
+          bookingPrice: bookingPrice.toString(),
+          bookingSecurity: bookingSecurity.toString()
+        });
 
-      const result = await handleCreateListing({
-        propertyId: newPropertyId,
-        date: availableDateTimestamp,
-        rentPrice: rentPrice.toString(),
-        rentSecurity: rentSecurity.toString(),
-        bookingPrice: bookingPrice.toString(),
-        bookingSecurity: bookingSecurity.toString()
-      });
-
-      if (result.success) {
-        console.log("Property created successfully:", result.data);
-        handleCreate(result.data.transaction.msg);
-        setPropertyId(newPropertyId); // Set the generated property ID for use in listing
-      } else {
-        console.error("Failed to create property:", result.message);
+        if (result.success) {
+          console.log("Property created successfully:", result.data);
+          handleCreate(result.data.transaction.msg);
+          setPropertyId(newPropertyId);
+        } else {
+          console.error("Failed to create property:", result.message);
+          toast.error("Failed to create property listing");
+        }
+      } finally {
+        // Clean up blob URL
+        URL.revokeObjectURL(imageBlobUrl);
       }
     } catch (error) {
       console.error("Error creating property:", error);
+      toast.error("An error occurred while creating the property");
     }
   }
 
