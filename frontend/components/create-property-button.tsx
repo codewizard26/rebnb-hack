@@ -2,30 +2,37 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useCreateProperty, generatePropertyId } from "@/hooks/useGenerateListing";
+import { useCreateListing, generatePropertyId } from "@/hooks/useGenerateListing";
 import { toast } from "sonner";
 
 interface CreatePropertyButtonProps {
     to?: string;
     propertyId?: string;
-    onSuccess?: (data: any) => void;
+    onSuccess?: (data: { property_id: string; ipfs_hash: string; transaction_hash: string }) => void;
     onError?: (error: string) => void;
 }
 
 export function CreatePropertyButton({
-    to = "0xd81252d06C67A2f3cF3B377d9Aae5d827f14f3b1",
+    to = "0x66BEd1DeDf7D459168Db564D97294366cA777142",
     propertyId,
     onSuccess,
     onError
 }: CreatePropertyButtonProps) {
-    const { mutateAsync: createProperty, isPending } = useCreateProperty();
+    const { mutateAsync: createProperty, isPending } = useCreateListing();
 
     const handleCreateProperty = async () => {
         try {
             // Use provided propertyId or generate a new one > 1
             const finalPropertyId = propertyId || generatePropertyId();
 
-            const result = await createProperty({ to, propertyId: finalPropertyId });
+            const result = await createProperty({
+                propertyId: finalPropertyId,
+                date: new Date().toISOString().split('T')[0],
+                rentPrice: "0.1",
+                rentSecurity: "0.05",
+                bookingPrice: "0.2",
+                bookingSecurity: "0.1"
+            });
 
             if (result.success) {
                 toast.success("Property created successfully!");
@@ -34,8 +41,8 @@ export function CreatePropertyButton({
                 toast.error(result.message || "Failed to create property");
                 onError?.(result.message || "Failed to create property");
             }
-        } catch (error: any) {
-            const errorMessage = error.message || "An unexpected error occurred";
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
             toast.error(errorMessage);
             onError?.(errorMessage);
         }

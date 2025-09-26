@@ -21,7 +21,7 @@ export function BookingDates({ value, onChange }: { value: { from?: Date; to?: D
                 <div className="p-3">
                     <Calendar
                         mode="range"
-                        selected={value}
+                        selected={value.from && value.to ? { from: value.from, to: value.to } : undefined}
                         onSelect={(range) => onChange({ from: range?.from, to: range?.to ?? (range?.from ? addDays(range.from, 1) : undefined) })}
                         numberOfMonths={2}
                     />

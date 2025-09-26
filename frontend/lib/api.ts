@@ -12,7 +12,11 @@ export interface CreatePropertyRequest {
 export interface CreatePropertyResponse {
     success: boolean;
     message?: string;
-    data?: any;
+    data?: {
+        property_id: string;
+        ipfs_hash: string;
+        transaction_hash: string;
+    };
 }
 
 export interface Property {
@@ -61,10 +65,11 @@ export const createProperty = async (data: CreatePropertyRequest): Promise<Creat
             success: true,
             data: response.data
         };
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to create property';
         return {
             success: false,
-            message: error.response?.data?.message || error.message || 'Failed to create property'
+            message: errorMessage
         };
     }
 };
@@ -74,9 +79,10 @@ export const fetchProperties = async (): Promise<Property[]> => {
     try {
         const response = await axios.get('https://api.rebnb.sumitdhiman.in/api/v1/properties');
         return response.data;
-    } catch (error: any) {
-        console.error('Failed to fetch properties:', error.message);
-        throw new Error(error.response?.data?.message || error.message || 'Failed to fetch properties');
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch properties';
+        console.error('Failed to fetch properties:', errorMessage);
+        throw new Error(errorMessage);
     }
 };
 
@@ -85,7 +91,7 @@ export const exampleCreateProperty = async () => {
     const propertyId = generatePropertyId(); // Generate a valid property ID > 1
 
     const result = await createProperty({
-        to: "0xd81252d06C67A2f3cF3B377d9Aae5d827f14f3b1",
+        to: "0x66BEd1DeDf7D459168Db564D97294366cA777142",
         propertyId: propertyId
     });
 

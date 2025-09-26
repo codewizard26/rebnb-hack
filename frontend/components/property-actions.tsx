@@ -35,7 +35,24 @@ export function PropertyActions() {
     const [newBookingSecurity, setNewBookingSecurity] = useState("");
 
     // Listing data state
-    const [listingData, setListingData] = useState<any>(null);
+    const [listingData, setListingData] = useState<{
+        listing: {
+            creator: string;
+            propertyId: string;
+            date: string;
+            rentPrice: string;
+            rentSecurity: string;
+            bookingPrice: string;
+            bookingSecurity: string;
+        };
+        isActive: boolean;
+        bookingInfo: {
+            receiver: string;
+            booker: string;
+            isBooked: boolean;
+        };
+        isCompleted: boolean;
+    } | null>(null);
     const [loading, setLoading] = useState(false);
 
     // Hooks
@@ -195,7 +212,7 @@ export function PropertyActions() {
                             <h3 className="text-lg font-semibold text-white">New Pricing (for Re-rent)</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="newRentPrice" className="text-sky-300">New Rent Price (ETH)</Label>
+                                    <Label htmlFor="newRentPrice" className="text-sky-300">New Rent Price (0G)</Label>
                                     <Input
                                         id="newRentPrice"
                                         value={newRentPrice}
@@ -205,7 +222,7 @@ export function PropertyActions() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="newRentSecurity" className="text-sky-300">New Rent Security (ETH)</Label>
+                                    <Label htmlFor="newRentSecurity" className="text-sky-300">New Rent Security (0G)</Label>
                                     <Input
                                         id="newRentSecurity"
                                         value={newRentSecurity}
@@ -215,7 +232,7 @@ export function PropertyActions() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="newBookingPrice" className="text-sky-300">New Booking Price (ETH)</Label>
+                                    <Label htmlFor="newBookingPrice" className="text-sky-300">New Booking Price (0G)</Label>
                                     <Input
                                         id="newBookingPrice"
                                         value={newBookingPrice}
@@ -225,7 +242,7 @@ export function PropertyActions() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="newBookingSecurity" className="text-sky-300">New Booking Security (ETH)</Label>
+                                    <Label htmlFor="newBookingSecurity" className="text-sky-300">New Booking Security (0G)</Label>
                                     <Input
                                         id="newBookingSecurity"
                                         value={newBookingSecurity}
@@ -318,19 +335,19 @@ export function PropertyActions() {
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sky-300">Rent Price</Label>
-                                <p className="text-white">{listingData.listing.rentPrice} ETH</p>
+                                <p className="text-white">{listingData.listing.rentPrice} 0G</p>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sky-300">Rent Security</Label>
-                                <p className="text-white">{listingData.listing.rentSecurity} ETH</p>
+                                <p className="text-white">{listingData.listing.rentSecurity} 0G</p>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sky-300">Booking Price</Label>
-                                <p className="text-white">{listingData.listing.bookingPrice} ETH</p>
+                                <p className="text-white">{listingData.listing.bookingPrice} 0G</p>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sky-300">Booking Security</Label>
-                                <p className="text-white">{listingData.listing.bookingSecurity} ETH</p>
+                                <p className="text-white">{listingData.listing.bookingSecurity} 0G</p>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sky-300">Is Active</Label>

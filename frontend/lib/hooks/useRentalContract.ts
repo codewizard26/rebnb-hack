@@ -3,13 +3,11 @@ import {
   useWriteContract,
   useWaitForTransactionReceipt,
 } from "wagmi";
-import { Address, formatUnits, parseUnits } from "viem";
+import { formatUnits, parseUnits } from "viem";
 import {
   CONTRACTS,
   RENTAL_CONTRACT_ABI,
-  PYUSD_TOKEN_ABI,
-  Reservation,
-  ListingDetails,
+  NATIVE_TOKEN,
   ReservationState,
 } from "../contracts";
 import { toast } from "sonner";
@@ -54,33 +52,14 @@ export function useListingReservation(listingId: bigint | undefined) {
   });
 }
 
-// Hook for PYUSD balance
-export function usePYUSDBalance(address: Address | undefined) {
-  return useReadContract({
-    address: CONTRACTS.PYUSD_TOKEN,
-    abi: PYUSD_TOKEN_ABI,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
-    query: {
-      enabled: !!address,
-    },
-  });
+// Native token utilities (0G tokens)
+export function formatNativeToken(amount: bigint | undefined): string {
+  if (!amount) return "0";
+  return formatUnits(amount, NATIVE_TOKEN.decimals);
 }
 
-// Hook for PYUSD allowance
-export function usePYUSDAllowance(
-  owner: Address | undefined,
-  spender: Address = CONTRACTS.RENTAL_CONTRACT
-) {
-  return useReadContract({
-    address: CONTRACTS.PYUSD_TOKEN,
-    abi: PYUSD_TOKEN_ABI,
-    functionName: "allowance",
-    args: owner ? [owner, spender] : undefined,
-    query: {
-      enabled: !!owner,
-    },
-  });
+export function parseNativeToken(amount: string): bigint {
+  return parseUnits(amount, NATIVE_TOKEN.decimals);
 }
 
 // Hook for contract write operations
@@ -91,25 +70,7 @@ export function useRentalContractWrite() {
       hash,
     });
 
-  // PYUSD approval
-  const approvePYUSD = useCallback(
-    async (amount: bigint) => {
-      try {
-        toast.loading("Approving PYUSD spending...", { id: "approve" });
-
-        writeContract({
-          address: CONTRACTS.PYUSD_TOKEN,
-          abi: PYUSD_TOKEN_ABI,
-          functionName: "approve",
-          args: [CONTRACTS.RENTAL_CONTRACT, amount],
-        });
-      } catch (error) {
-        toast.error("Failed to approve PYUSD spending", { id: "approve" });
-        throw error;
-      }
-    },
-    [writeContract]
-  );
+  // Native token operations (no approval needed for native tokens)
 
   // Pre-book a property
   const prebook = useCallback(
@@ -212,7 +173,6 @@ export function useRentalContractWrite() {
   );
 
   return {
-    approvePYUSD,
     prebook,
     finalizeBooking,
     bookDirectly,
@@ -226,15 +186,6 @@ export function useRentalContractWrite() {
   };
 }
 
-// Utility functions for formatting
-export function formatPYUSD(amount: bigint | undefined): string {
-  if (!amount) return "0";
-  return formatUnits(amount, 6); // PYUSD has 6 decimals
-}
-
-export function parsePYUSD(amount: string): bigint {
-  return parseUnits(amount, 6);
-}
 
 // Helper function to get reservation state label
 export function getReservationStateLabel(state: ReservationState): string {

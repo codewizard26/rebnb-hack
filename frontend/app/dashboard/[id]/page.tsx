@@ -29,7 +29,7 @@ interface PropertyMetadata {
     price?: number;
     location?: string;
     owner?: string;
-    [key: string]: any; // Allow for additional properties
+    [key: string]: string | number | boolean | undefined; // Allow for additional properties
 }
 
 export default function PropertyDetailPage() {
@@ -39,7 +39,7 @@ export default function PropertyDetailPage() {
     const [property, setProperty] = useState<Property | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [propertyMetadata, setPropertyMetadata] = useState<any>(null);
+    const [propertyMetadata, setPropertyMetadata] = useState<PropertyMetadata | null>(null);
 
     // Property action states
     const [selectedDate, setSelectedDate] = useState("");
@@ -47,7 +47,24 @@ export default function PropertyDetailPage() {
     const [newRentSecurity, setNewRentSecurity] = useState("");
     const [newBookingPrice, setNewBookingPrice] = useState("");
     const [newBookingSecurity, setNewBookingSecurity] = useState("");
-    const [listingData, setListingData] = useState<any>(null);
+    const [listingData, setListingData] = useState<{
+        listing: {
+            creator: string;
+            propertyId: string;
+            date: string;
+            rentPrice: string;
+            rentSecurity: string;
+            bookingPrice: string;
+            bookingSecurity: string;
+        };
+        isActive: boolean;
+        bookingInfo: {
+            receiver: string;
+            booker: string;
+            isBooked: boolean;
+        };
+        isCompleted: boolean;
+    } | null>(null);
     const [showActionForm, setShowActionForm] = useState(false);
     const [actionType, setActionType] = useState<"rent" | "book" | "unlock" | "cancel" | null>(null);
 
@@ -140,10 +157,10 @@ export default function PropertyDetailPage() {
             const receipt = await rentProperty({
                 propertyId,
                 date: selectedDate,
-                newRentPrice: rentPrice,
-                newRentSecurity: rentSecurity,
-                newBookingPrice: bookingPrice,
-                newBookingSecurity: bookingSecurity
+                newRentPrice: String(rentPrice),
+                newRentSecurity: String(rentSecurity),
+                newBookingPrice: String(bookingPrice),
+                newBookingSecurity: String(bookingSecurity)
             });
             alert("Property rented successfully! Transaction hash: " + receipt.hash);
             setShowActionForm(false);
@@ -336,14 +353,14 @@ export default function PropertyDetailPage() {
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div className="bg-gray-800/50 rounded-lg p-4">
                                                 <h4 className="text-sm font-medium text-gray-400 mb-2">Rent Pricing</h4>
-                                                <p className="text-white text-sm">Rent Price: <span className="text-green-400 font-semibold">{propertyMetadata.rent_price} ETH</span></p>
-                                                <p className="text-white text-sm">Security (paid upfront): <span className="text-yellow-400 font-semibold">{propertyMetadata.rent_security} ETH</span></p>
+                                                <p className="text-white text-sm">Rent Price: <span className="text-green-400 font-semibold">{propertyMetadata.rent_price} 0G</span></p>
+                                                <p className="text-white text-sm">Security (paid upfront): <span className="text-yellow-400 font-semibold">{propertyMetadata.rent_security} 0G</span></p>
                                                 <p className="text-xs text-gray-400 mt-2">💡 You only pay security when renting. Rent price goes to owner when room is unlocked.</p>
                                             </div>
                                             <div className="bg-gray-800/50 rounded-lg p-4">
                                                 <h4 className="text-sm font-medium text-gray-400 mb-2">Booking Pricing</h4>
-                                                <p className="text-white text-sm">Booking Price: <span className="text-green-400 font-semibold">{propertyMetadata.booking_price} ETH</span></p>
-                                                <p className="text-white text-sm">Security (paid upfront): <span className="text-yellow-400 font-semibold">{propertyMetadata.booking_security} ETH</span></p>
+                                                <p className="text-white text-sm">Booking Price: <span className="text-green-400 font-semibold">{propertyMetadata.booking_price} 0G</span></p>
+                                                <p className="text-white text-sm">Security (paid upfront): <span className="text-yellow-400 font-semibold">{propertyMetadata.booking_security} 0G</span></p>
                                                 <p className="text-xs text-gray-400 mt-2">💡 You only pay security when booking. Booking price is paid when room is unlocked.</p>
                                             </div>
                                         </div>
@@ -408,7 +425,7 @@ export default function PropertyDetailPage() {
                                             <div>🏠 Rent Property</div>
                                             {propertyMetadata && (
                                                 <div className="text-xs opacity-80 mt-1">
-                                                    Pay: {propertyMetadata.rent_security} ETH security
+                                                    Pay: {propertyMetadata.rent_security} 0G security
                                                 </div>
                                             )}
                                         </div>
@@ -428,7 +445,7 @@ export default function PropertyDetailPage() {
                                             <div>🗓️ Book Property</div>
                                             {propertyMetadata && (
                                                 <div className="text-xs opacity-80 mt-1">
-                                                    Pay: {propertyMetadata.booking_security} ETH security
+                                                    Pay: {propertyMetadata.booking_security} 0G security
                                                 </div>
                                             )}
                                         </div>
@@ -448,7 +465,7 @@ export default function PropertyDetailPage() {
                                             <div>🔑 Unlock Room</div>
                                             {propertyMetadata && (
                                                 <div className="text-xs opacity-80 mt-1">
-                                                    Pay: {propertyMetadata.booking_price} ETH
+                                                    Pay: {propertyMetadata.booking_price} 0G
                                                 </div>
                                             )}
                                         </div>
@@ -541,47 +558,47 @@ export default function PropertyDetailPage() {
                                 <>
                                     <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
                                         <h4 className="text-blue-300 font-semibold mb-2">Rent Information</h4>
-                                        <p className="text-white text-sm mb-2">You will pay: <span className="text-yellow-400 font-semibold">{propertyMetadata?.rent_security || "0"} ETH</span> security deposit</p>
-                                        <p className="text-white text-sm mb-2">Rent price: <span className="text-green-400 font-semibold">{propertyMetadata?.rent_price || "0"} ETH</span> (paid to owner when room is unlocked)</p>
+                                        <p className="text-white text-sm mb-2">You will pay: <span className="text-yellow-400 font-semibold">{propertyMetadata?.rent_security || "0"} 0G</span> security deposit</p>
+                                        <p className="text-white text-sm mb-2">Rent price: <span className="text-green-400 font-semibold">{propertyMetadata?.rent_price || "0"} 0G</span> (paid to owner when room is unlocked)</p>
                                         <p className="text-gray-400 text-xs">The rent price will be sent to the property owner when someone unlocks the room. You only pay the security deposit upfront.</p>
                                     </div>
                                     <div>
-                                        <Label htmlFor="newRentPrice" className="text-sky-300">New Rent Price (ETH) - Optional</Label>
+                                        <Label htmlFor="newRentPrice" className="text-sky-300">New Rent Price (0G) - Optional</Label>
                                         <Input
                                             id="newRentPrice"
-                                            value={newRentPrice || propertyMetadata?.rent_price || ""}
+                                            value={newRentPrice || String(propertyMetadata?.rent_price || "")}
                                             onChange={(e) => setNewRentPrice(e.target.value)}
-                                            placeholder={propertyMetadata?.rent_price || "0.1"}
+                                            placeholder={String(propertyMetadata?.rent_price || "0.1")}
                                             className="bg-black/50 border-sky-500/30 text-white mt-1"
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="newRentSecurity" className="text-sky-300">New Rent Security (ETH) - Optional</Label>
+                                        <Label htmlFor="newRentSecurity" className="text-sky-300">New Rent Security (0G) - Optional</Label>
                                         <Input
                                             id="newRentSecurity"
-                                            value={newRentSecurity || propertyMetadata?.rent_security || ""}
+                                            value={newRentSecurity || String(propertyMetadata?.rent_security || "")}
                                             onChange={(e) => setNewRentSecurity(e.target.value)}
-                                            placeholder={propertyMetadata?.rent_security || "0.05"}
+                                            placeholder={String(propertyMetadata?.rent_security || "0.05")}
                                             className="bg-black/50 border-sky-500/30 text-white mt-1"
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="newBookingPrice" className="text-sky-300">New Booking Price (ETH) - Optional</Label>
+                                        <Label htmlFor="newBookingPrice" className="text-sky-300">New Booking Price (0G) - Optional</Label>
                                         <Input
                                             id="newBookingPrice"
-                                            value={newBookingPrice || propertyMetadata?.booking_price || ""}
+                                            value={newBookingPrice || String(propertyMetadata?.booking_price || "")}
                                             onChange={(e) => setNewBookingPrice(e.target.value)}
-                                            placeholder={propertyMetadata?.booking_price || "0.2"}
+                                            placeholder={String(propertyMetadata?.booking_price || "0.2")}
                                             className="bg-black/50 border-sky-500/30 text-white mt-1"
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="newBookingSecurity" className="text-sky-300">New Booking Security (ETH) - Optional</Label>
+                                        <Label htmlFor="newBookingSecurity" className="text-sky-300">New Booking Security (0G) - Optional</Label>
                                         <Input
                                             id="newBookingSecurity"
-                                            value={newBookingSecurity || propertyMetadata?.booking_security || ""}
+                                            value={newBookingSecurity || String(propertyMetadata?.booking_security || "")}
                                             onChange={(e) => setNewBookingSecurity(e.target.value)}
-                                            placeholder={propertyMetadata?.booking_security || "0.1"}
+                                            placeholder={String(propertyMetadata?.booking_security || "0.1")}
                                             className="bg-black/50 border-sky-500/30 text-white mt-1"
                                         />
                                     </div>
@@ -591,8 +608,8 @@ export default function PropertyDetailPage() {
                             {(actionType === "book") && (
                                 <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4">
                                     <h4 className="text-green-300 font-semibold mb-2">Booking Information</h4>
-                                    <p className="text-white text-sm mb-2">You will pay: <span className="text-yellow-400 font-semibold">{propertyMetadata?.booking_security || "0"} ETH</span> security deposit</p>
-                                    <p className="text-white text-sm mb-2">Booking price: <span className="text-green-400 font-semibold">{propertyMetadata?.booking_price || "0"} ETH</span> (paid when room is unlocked)</p>
+                                    <p className="text-white text-sm mb-2">You will pay: <span className="text-yellow-400 font-semibold">{propertyMetadata?.booking_security || "0"} 0G</span> security deposit</p>
+                                    <p className="text-white text-sm mb-2">Booking price: <span className="text-green-400 font-semibold">{propertyMetadata?.booking_price || "0"} 0G</span> (paid when room is unlocked)</p>
                                     <p className="text-gray-400 text-xs">The booking price will be paid when someone unlocks the room. You only pay the security deposit upfront.</p>
                                 </div>
                             )}
@@ -600,8 +617,8 @@ export default function PropertyDetailPage() {
                             {(actionType === "unlock") && (
                                 <div className="bg-orange-900/20 border border-orange-500/30 rounded-lg p-4">
                                     <h4 className="text-orange-300 font-semibold mb-2">Unlock Information</h4>
-                                    <p className="text-white text-sm mb-2">You will pay: <span className="text-green-400 font-semibold">{propertyMetadata?.booking_price || "0"} ETH</span> booking price</p>
-                                    <p className="text-white text-sm mb-2">Rent price: <span className="text-blue-400 font-semibold">{propertyMetadata?.rent_price || "0"} ETH</span> (sent to property owner)</p>
+                                    <p className="text-white text-sm mb-2">You will pay: <span className="text-green-400 font-semibold">{propertyMetadata?.booking_price || "0"} 0G</span> booking price</p>
+                                    <p className="text-white text-sm mb-2">Rent price: <span className="text-blue-400 font-semibold">{propertyMetadata?.rent_price || "0"} 0G</span> (sent to property owner)</p>
                                     <p className="text-gray-400 text-xs">When you unlock the room, the booking price is paid and the rent price is sent to the property owner. The NFT is also transferred to you.</p>
                                 </div>
                             )}
@@ -674,19 +691,19 @@ export default function PropertyDetailPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sky-300">Rent Price</Label>
-                                <p className="text-white">{listingData.listing.rentPrice} ETH</p>
+                                <p className="text-white">{listingData.listing.rentPrice} 0G</p>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sky-300">Rent Security</Label>
-                                <p className="text-white">{listingData.listing.rentSecurity} ETH</p>
+                                <p className="text-white">{listingData.listing.rentSecurity} 0G</p>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sky-300">Booking Price</Label>
-                                <p className="text-white">{listingData.listing.bookingPrice} ETH</p>
+                                <p className="text-white">{listingData.listing.bookingPrice} 0G</p>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sky-300">Booking Security</Label>
-                                <p className="text-white">{listingData.listing.bookingSecurity} ETH</p>
+                                <p className="text-white">{listingData.listing.bookingSecurity} 0G</p>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sky-300">Is Active</Label>

@@ -6,12 +6,6 @@ import { ReactNode } from "react";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-    mainnet,
-    sepolia,
-    polygon,
-    polygonAmoy,
-    rootstock,
-    rootstockTestnet,
     arbitrumSepolia,
 } from "wagmi/chains";
 import {
@@ -23,28 +17,28 @@ import {
     rootstockTestnet as appRootstockTestnet,
 } from "@reown/appkit/networks";
 
-// Define Unichain Sepolia chain
-const unichainSepolia = {
-    id: 1301,
-    name: "Unichain Sepolia",
-    network: "unichain-sepolia",
+// Define 0g Testnet chain
+const ogTestnet = {
+    id: 16602,
+    name: "0g Testnet",
+    network: "0g-testnet",
     nativeCurrency: {
         decimals: 18,
-        name: "Unichain",
-        symbol: "UNI",
+        name: "0g",
+        symbol: "0G",
     },
     rpcUrls: {
         default: {
-            http: ["https://unichain-sepolia-rpc.publicnode.com"],
+            http: ["https://evmrpc-testnet.0g.ai"],
         },
         public: {
-            http: ["https://unichain-sepolia-rpc.publicnode.com"],
+            http: ["https://evmrpc-testnet.0g.ai"],
         },
     },
     blockExplorers: {
         default: {
-            name: "Unichain Explorer",
-            url: "https://sepolia.uniscan.xyz",
+            name: "0g Explorer",
+            url: "https://testnet.0g.ai",
         },
     },
     testnet: true,
@@ -57,32 +51,32 @@ const queryClient = new QueryClient();
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "demo";
 
-const networks = [arbitrumSepolia, unichainSepolia] as const;
+const networks = [arbitrumSepolia, ogTestnet] as const;
 const transports = {
     [arbitrumSepolia.id]: http(),
-    [unichainSepolia.id]: http(),
+    [ogTestnet.id]: http(),
 } as const;
 
 const wagmiConfig = createConfig({ chains: networks, transports });
 
-// Define Unichain Sepolia for AppKit
-const appUnichainSepolia: AppKitNetwork = {
-    id: 1301,
-    name: "Unichain Sepolia",
+// Define 0g Testnet for AppKit
+const appOgTestnet: AppKitNetwork = {
+    id: 16602,
+    name: "0g Testnet",
     nativeCurrency: {
-        name: "Unichain",
-        symbol: "UNI",
+        name: "0g",
+        symbol: "0G",
         decimals: 18,
     },
     rpcUrls: {
         default: {
-            http: ["https://unichain-sepolia-rpc.publicnode.com"],
+            http: ["https://evmrpc-testnet.0g.ai"],
         },
     },
     blockExplorers: {
         default: {
-            name: "Unichain Explorer",
-            url: "https://sepolia.uniscan.xyz",
+            name: "0g Explorer",
+            url: "https://testnet.0g.ai",
         },
     },
     testnet: true,
@@ -95,7 +89,7 @@ const appNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
     appPolygonAmoy,
     appRootstock,
     appRootstockTestnet,
-    appUnichainSepolia,
+    appOgTestnet,
 ];
 const wagmiAdapter = new WagmiAdapter({ networks: appNetworks, projectId });
 

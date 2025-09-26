@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   useReservationStatus,
   useRentalContractWrite,
-  formatPYUSD,
+  formatNativeToken,
   getReservationStateLabel,
   getReservationStateColor,
 } from "@/lib/hooks/useRentalContract";
@@ -291,7 +291,7 @@ export default function DisputePage() {
                 <div>
                   <p className="text-muted-foreground">Total Paid</p>
                   <p className="font-semibold">
-                    {formatPYUSD(reservation[10])} PYUSD
+                    {formatNativeToken(reservation[10])} 0G
                   </p>
                 </div>
                 <div>

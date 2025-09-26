@@ -64,10 +64,10 @@ export async function POST(req: Request) {
         reason: "Proof verification failed.",
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle unexpected errors, including configuration mismatches.
-    if (error.name === "ConfigMismatchError") {
-      console.error("Configuration mismatch:", error.issues);
+    if (error && typeof error === 'object' && 'name' in error && error.name === "ConfigMismatchError") {
+      console.error("Configuration mismatch:", (error as unknown as { issues: unknown }).issues);
       return NextResponse.json({
         status: "error",
         result: false,

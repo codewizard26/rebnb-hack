@@ -1,11 +1,12 @@
 import { Address } from "viem";
 
-// Contract addresses - these should be updated with actual deployed addresses
+// Contract addresses - deployed on 0g testnet (Chain ID: 16602)
 export const CONTRACTS = {
-  // Main rental contract address (to be updated with actual deployment)
-  RENTAL_CONTRACT: "0x1234567890123456789012345678901234567890" as Address,
-  // PYUSD token contract address (actual PYUSD address on respective networks)
-  PYUSD_TOKEN: "0x637A1259C6afd7E3AdF63993cA7E58BB438aB1B1" as Address, // PYUSD on Arbi sepolia
+  // TokenizedProperty contract address on 0g testnet
+  TOKENIZED_PROPERTY: "0x66BEd1DeDf7D459168Db564D97294366cA777142" as Address,
+  // Marketplace contract address on 0g testnet
+  MARKETPLACE: "0x1F474fe70F593E452F976F59BF2Cf990585E12FD" as Address,
+  // Payments are now done in native 0G tokens (no ERC20 token needed)
 } as const;
 
 // Reservation states enum matching the smart contract
@@ -187,47 +188,9 @@ export const RENTAL_CONTRACT_ABI = [
   },
 ] as const;
 
-// PYUSD ERC20 token ABI (standard ERC20 functions we need)
-export const PYUSD_TOKEN_ABI = [
-  {
-    name: "balanceOf",
-    type: "function",
-    stateMutability: "view",
-    inputs: [{ name: "account", type: "address" }],
-    outputs: [{ name: "", type: "uint256" }],
-  },
-  {
-    name: "allowance",
-    type: "function",
-    stateMutability: "view",
-    inputs: [
-      { name: "owner", type: "address" },
-      { name: "spender", type: "address" },
-    ],
-    outputs: [{ name: "", type: "uint256" }],
-  },
-  {
-    name: "approve",
-    type: "function",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "spender", type: "address" },
-      { name: "amount", type: "uint256" },
-    ],
-    outputs: [{ name: "", type: "bool" }],
-  },
-  {
-    name: "decimals",
-    type: "function",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ name: "", type: "uint8" }],
-  },
-  {
-    name: "symbol",
-    type: "function",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ name: "", type: "string" }],
-  },
-] as const;
+// Native 0G token utilities (no ERC20 token needed for payments)
+export const NATIVE_TOKEN = {
+  symbol: "0G",
+  decimals: 18,
+  name: "0g Token",
+} as const;

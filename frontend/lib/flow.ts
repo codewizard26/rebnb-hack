@@ -21,7 +21,7 @@ export function configureFlow(env: FlowEnv = (process.env.NEXT_PUBLIC_FLOW_NETWO
 }
 
 export const flowAuth = {
-    subscribe(cb: (user: fcl.CurrentUserObject) => void) {
+    subscribe(cb: (user: any) => void) {
         return fcl.currentUser.subscribe(cb);
     },
     async logIn() {

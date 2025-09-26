@@ -23,7 +23,24 @@ export function PropertyActionButtons({ propertyId, date }: PropertyActionButton
     const [newRentSecurity, setNewRentSecurity] = useState("");
     const [newBookingPrice, setNewBookingPrice] = useState("");
     const [newBookingSecurity, setNewBookingSecurity] = useState("");
-    const [listingData, setListingData] = useState<any>(null);
+    const [listingData, setListingData] = useState<{
+        listing: {
+            creator: string;
+            propertyId: string;
+            date: string;
+            rentPrice: string;
+            rentSecurity: string;
+            bookingPrice: string;
+            bookingSecurity: string;
+        };
+        isActive: boolean;
+        bookingInfo: {
+            receiver: string;
+            booker: string;
+            isBooked: boolean;
+        };
+        isCompleted: boolean;
+    } | null>(null);
 
     // Hooks
     const { mutateAsync: rentProperty, isPending: isRenting } = useRentProperty();
@@ -97,7 +114,7 @@ export function PropertyActionButtons({ propertyId, date }: PropertyActionButton
             <CardContent className="space-y-4">
                 {/* Re-rent pricing inputs */}
                 <div className="space-y-2">
-                    <Label>New Rent Price (ETH)</Label>
+                    <Label>New Rent Price (0G)</Label>
                     <Input
                         value={newRentPrice}
                         onChange={(e) => setNewRentPrice(e.target.value)}
@@ -106,7 +123,7 @@ export function PropertyActionButtons({ propertyId, date }: PropertyActionButton
                 </div>
 
                 <div className="space-y-2">
-                    <Label>New Rent Security (ETH)</Label>
+                    <Label>New Rent Security (0G)</Label>
                     <Input
                         value={newRentSecurity}
                         onChange={(e) => setNewRentSecurity(e.target.value)}
@@ -115,7 +132,7 @@ export function PropertyActionButtons({ propertyId, date }: PropertyActionButton
                 </div>
 
                 <div className="space-y-2">
-                    <Label>New Booking Price (ETH)</Label>
+                    <Label>New Booking Price (0G)</Label>
                     <Input
                         value={newBookingPrice}
                         onChange={(e) => setNewBookingPrice(e.target.value)}
@@ -124,7 +141,7 @@ export function PropertyActionButtons({ propertyId, date }: PropertyActionButton
                 </div>
 
                 <div className="space-y-2">
-                    <Label>New Booking Security (ETH)</Label>
+                    <Label>New Booking Security (0G)</Label>
                     <Input
                         value={newBookingSecurity}
                         onChange={(e) => setNewBookingSecurity(e.target.value)}
@@ -179,8 +196,8 @@ export function PropertyActionButtons({ propertyId, date }: PropertyActionButton
                     <div className="mt-4 p-3 bg-gray-100 rounded-lg">
                         <h4 className="font-semibold mb-2">Listing Info:</h4>
                         <p><strong>Creator:</strong> {listingData.listing.creator}</p>
-                        <p><strong>Rent Price:</strong> {listingData.listing.rentPrice} ETH</p>
-                        <p><strong>Booking Price:</strong> {listingData.listing.bookingPrice} ETH</p>
+                        <p><strong>Rent Price:</strong> {listingData.listing.rentPrice} 0G</p>
+                        <p><strong>Booking Price:</strong> {listingData.listing.bookingPrice} 0G</p>
                         <p><strong>Is Active:</strong> {listingData.isActive ? "Yes" : "No"}</p>
                         <p><strong>Is Booked:</strong> {listingData.bookingInfo.isBooked ? "Yes" : "No"}</p>
                         <p><strong>Is Completed:</strong> {listingData.isCompleted ? "Yes" : "No"}</p>

@@ -15,10 +15,8 @@ import { useAccount } from "wagmi";
 import {
   useListingReservation,
   useRentalContractWrite,
-  usePYUSDBalance,
-  usePYUSDAllowance,
-  formatPYUSD,
-  parsePYUSD,
+  formatNativeToken,
+  parseNativeToken,
   getReservationStateLabel,
   getReservationStateColor,
 } from "@/lib/hooks/useRentalContract";
@@ -71,16 +69,12 @@ export default function PropertyDetailsPage() {
 
   // Contract hooks
   const { data: reservation } = useListingReservation(property?.listingId);
-  const { data: pyusdBalance } = usePYUSDBalance(address);
-  const { data: pyusdAllowance } = usePYUSDAllowance(address);
   const {
-    approvePYUSD,
     prebook,
     finalizeBooking,
     bookDirectly,
     isPending,
     isConfirming,
-    isConfirmed,
   } = useRentalContractWrite();
 
   if (!property) {
@@ -110,16 +104,10 @@ export default function PropertyDetailsPage() {
   const isAvailable = !reservation || reservationState === null;
 
   // Calculate amounts
-  const depositAmount = parsePYUSD(property.deposit.toString());
-  const rentAmount = parsePYUSD(property.rent.toString());
-  const totalAmount = isPrebooked && reservation ? reservation[10] : rentAmount; // totalPaid from reservation or rent
+  const depositAmount = parseNativeToken(property.deposit.toString());
+  const rentAmount = parseNativeToken(property.rent.toString());
 
-  // Check if user has sufficient balance and allowance
-  const hasSufficientBalance =
-    pyusdBalance && pyusdBalance >= (isPrebooked ? totalAmount : rentAmount);
-  const hasAllowance =
-    pyusdAllowance &&
-    pyusdAllowance >= (isPrebooked ? totalAmount : rentAmount);
+  // For native tokens, we don't need to check allowance (no ERC20 approval needed)
 
   const handlePrebook = async () => {
     if (!isConnected) {
@@ -128,13 +116,6 @@ export default function PropertyDetailsPage() {
     }
 
     try {
-      // First approve if needed
-      if (!hasAllowance) {
-        await approvePYUSD(depositAmount);
-        return; // Wait for approval to complete
-      }
-
-      // Then prebook
       await prebook(property.listingId, depositAmount);
     } catch (error) {
       console.error("Prebook failed:", error);
@@ -148,13 +129,6 @@ export default function PropertyDetailsPage() {
     }
 
     try {
-      // First approve if needed
-      if (!hasAllowance) {
-        await approvePYUSD(rentAmount);
-        return; // Wait for approval to complete
-      }
-
-      // Then book directly
       await bookDirectly(property.listingId, rentAmount);
     } catch (error) {
       console.error("Direct booking failed:", error);
@@ -171,13 +145,6 @@ export default function PropertyDetailsPage() {
       const bookingId = reservation[0] as bigint;
       const totalPaid = reservation[10] as bigint;
 
-      // First approve if needed
-      if (!hasAllowance) {
-        await approvePYUSD(totalPaid);
-        return; // Wait for approval to complete
-      }
-
-      // Then finalize booking
       await finalizeBooking(bookingId, totalPaid);
     } catch (error) {
       console.error("Finalize booking failed:", error);
@@ -216,12 +183,12 @@ export default function PropertyDetailsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Nightly Rate</p>
-                <p className="text-2xl font-bold">${property.rent} PYUSD</p>
+                <p className="text-2xl font-bold">{property.rent} 0G</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Deposit</p>
                 <p className="text-xl font-semibold">
-                  ${property.deposit} PYUSD
+                  {property.deposit} 0G
                 </p>
               </div>
             </div>
@@ -233,7 +200,7 @@ export default function PropertyDetailsPage() {
             <div className="space-y-3">
               <Button
                 onClick={handleBookDirect}
-                disabled={!hasSufficientBalance || isPending || isConfirming}
+                disabled={isPending || isConfirming}
                 className="w-full bg-gradient-to-r from-indigo-500 to-pink-500 text-white"
               >
                 {isPending || isConfirming ? "Processing..." : "Book Directly"}
@@ -241,7 +208,7 @@ export default function PropertyDetailsPage() {
 
               <Button
                 onClick={handlePrebook}
-                disabled={!hasSufficientBalance || isPending || isConfirming}
+                disabled={isPending || isConfirming}
                 variant="outline"
                 className="w-full"
               >
@@ -251,15 +218,6 @@ export default function PropertyDetailsPage() {
               </Button>
             </div>
 
-            {!hasSufficientBalance && (
-              <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                  Insufficient PYUSD balance. You have{" "}
-                  {formatPYUSD(pyusdBalance)} PYUSD.
-                </p>
-              </div>
-            )}
           </CardContent>
         </Card>
       );
@@ -299,7 +257,7 @@ export default function PropertyDetailsPage() {
                   Final Price
                 </span>
                 <span className="text-lg font-bold">
-                  {formatPYUSD(totalPaid)} PYUSD
+                  {formatNativeToken(totalPaid)} 0G
                 </span>
               </div>
             </div>
@@ -310,7 +268,7 @@ export default function PropertyDetailsPage() {
 
             <Button
               onClick={handleFinalizeBooking}
-              disabled={!hasSufficientBalance || isPending || isConfirming}
+              disabled={isPending || isConfirming}
               className="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white"
             >
               {isPending || isConfirming
@@ -318,15 +276,6 @@ export default function PropertyDetailsPage() {
                 : "Book This Pre-rented Stay"}
             </Button>
 
-            {!hasSufficientBalance && (
-              <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                  Insufficient PYUSD balance. You need {formatPYUSD(totalPaid)}{" "}
-                  PYUSD.
-                </p>
-              </div>
-            )}
           </CardContent>
         </Card>
       );
@@ -468,10 +417,10 @@ export default function PropertyDetailsPage() {
                 <CardContent className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">
-                      PYUSD Balance
+                      0G Balance
                     </span>
                     <span className="font-mono">
-                      {formatPYUSD(pyusdBalance)} PYUSD
+                      Native 0G tokens
                     </span>
                   </div>
                   <div className="flex justify-between">

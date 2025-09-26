@@ -143,12 +143,12 @@ export function PropertyCard({ property }: { property: Property }) {
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-semibold text-lg">${property.rent} PYUSD</p>
+              <p className="font-semibold text-lg">{property.rent} 0G</p>
               <p className="text-sm text-muted-foreground">per night</p>
             </div>
             <div className="text-right">
               <p className="text-sm text-muted-foreground">Deposit</p>
-              <p className="font-medium">${property.deposit} PYUSD</p>
+              <p className="font-medium">{property.deposit} 0G</p>
             </div>
           </div>
         </CardContent>

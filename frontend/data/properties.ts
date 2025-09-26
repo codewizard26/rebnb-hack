@@ -5,8 +5,8 @@ export type Property = {
   description: string;
   city: string;
   type: "apartment" | "house" | "studio";
-  rent: number; // Price in PYUSD
-  deposit: number; // Deposit in PYUSD
+  rent: number; // Price in 0G tokens
+  deposit: number; // Deposit in 0G tokens
   owner: {
     address: string;
     ens?: string;
@@ -31,7 +31,7 @@ export const properties: Property[] = [
     rent: 1,
     deposit: 0.1,
     owner: {
-      address: "0x1234567890123456789012345678901234567890",
+      address: "0x66BEd1DeDf7D459168Db564D97294366cA777142",
       ens: "alice.eth",
     },
     image:
@@ -63,7 +63,7 @@ export const properties: Property[] = [
     type: "house",
     rent: 0.1,
     deposit: 0.2,
-    owner: { address: "0x9876543210987654321098765432109876543210" },
+    owner: { address: "0xd81252d06C67A2f3cF3B377d9Aae5d827f14f3b1" },
     image:
       "https://images.unsplash.com/photo-1600585154526-990dced4db0d?q=80&w=1200&auto=format&fit=crop",
     images: [
@@ -95,7 +95,7 @@ export const properties: Property[] = [
     rent: 0.01,
     deposit: 0.1,
     owner: {
-      address: "0x4567890123456789012345678901234567890123",
+      address: "0x1F474fe70F593E452F976F59BF2Cf990585E12FD",
       ens: "bob.eth",
     },
     image:
