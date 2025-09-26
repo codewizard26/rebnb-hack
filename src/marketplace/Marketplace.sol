@@ -184,7 +184,7 @@ contract Marketplace is Ownable {
 
         // Add the current owner to the listing splits after deducting the security deposit as its already transafered to token owner
         listingSplits[propertyId][date].push(
-            ListingSplit({receiver: token_owner, amount: listing.rentPrice})
+            ListingSplit({receiver: token_owner, amount: splitAmount})
         );
 
         // Update listing with new rent price and security deposit
@@ -273,7 +273,7 @@ contract Marketplace is Ownable {
                 expected,
                 amount
             );
-            // Transfer fee to owner
+            // Transfer platform fee
             success = payable(owner()).send(fee);
             require(success, "Transfer failed");
             emit SettleFee(splits[i].receiver, propertyId, date, fee);
@@ -303,7 +303,13 @@ contract Marketplace is Ownable {
             require(success, "Transfer failed");
             emit SettleFee(booking.receiver, propertyId, date, fee);
         } else {
-            emit SettlePayment(booking.receiver, propertyId, date, 0, 0);
+            emit SettlePayment(
+                booking.receiver,
+                propertyId,
+                date,
+                expected_current,
+                0
+            );
             emit SettleFee(booking.receiver, propertyId, date, 0);
         }
     }

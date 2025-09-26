@@ -18,6 +18,7 @@ contract MarketplaceTest is Test {
 
     Marketplace marketplace;
     TokenizedProperty propertyToken;
+    address admin = vm.randomAddress();
     address owner = vm.randomAddress();
     address renter = vm.randomAddress();
     address booker = vm.randomAddress();
@@ -25,42 +26,32 @@ contract MarketplaceTest is Test {
 
     function setUp() public {
         vm.label(owner, "Owner");
+        vm.label(admin, "Admin");
         vm.label(renter, "Renter");
         vm.label(booker, "Booker");
         vm.roll(1727347200);
         vm.warp(1727347200);
-        vm.prank(owner);
+        vm.prank(admin);
         // Deploy property token with required constructor args
-        propertyToken = new TokenizedProperty(
-            "TestProperty",
-            "TPROP",
-            "https://api.rebnb.sumitdhiman.in/metadata/"
-        );
-        vm.prank(owner);
+        propertyToken = new TokenizedProperty("TestProperty", "TPROP", "https://api.rebnb.sumitdhiman.in/metadata/");
+        vm.prank(admin);
         // Deploy marketplace with property token address
         marketplace = new Marketplace(address(propertyToken));
         // Set marketplace in property token
-        vm.prank(owner);
+        vm.prank(admin);
         propertyToken.setMarketplace(address(marketplace));
         // Mint a property token to owner
-        vm.prank(owner);
+        vm.prank(admin);
         propertyToken.mint(owner, propertyId);
     }
 
     function testTokenURI() public view {
+        assertEq(propertyToken.baseURI(), "https://api.rebnb.sumitdhiman.in/metadata/");
         assertEq(
-            propertyToken.baseURI(),
-            "https://api.rebnb.sumitdhiman.in/metadata/"
-        );
-        assertEq(
-            ITokenizedPropertyDate(propertyToken.date_token(propertyId))
-                .baseURI(),
+            ITokenizedPropertyDate(propertyToken.date_token(propertyId)).baseURI(),
             "https://api.rebnb.sumitdhiman.in/metadata/1/"
         );
-        assertEq(
-            propertyToken.tokenURI(propertyId),
-            "https://api.rebnb.sumitdhiman.in/metadata/1"
-        );
+        assertEq(propertyToken.tokenURI(propertyId), "https://api.rebnb.sumitdhiman.in/metadata/1");
     }
 
     function testCreateListing() public {
@@ -76,12 +67,8 @@ contract MarketplaceTest is Test {
             0.2 ether // bookingSecurity
         );
         assertEq(
-            TokenizedPropertyDate(propertyToken.date_token(propertyId))
-                .tokenURI(date),
-            string.concat(
-                "https://api.rebnb.sumitdhiman.in/metadata/1/",
-                date.toString()
-            )
+            TokenizedPropertyDate(propertyToken.date_token(propertyId)).tokenURI(date),
+            string.concat("https://api.rebnb.sumitdhiman.in/metadata/1/", date.toString())
         );
         // Add assertion for listing existence
         Marketplace.Listing memory listing = marketplace.getListing(propertyId, date);
@@ -273,6 +260,28 @@ contract MarketplaceTest is Test {
         vm.deal(booker, renter2Params.bookingPrice);
         vm.prank(booker);
         marketplace.unlockRoom{value: renter2Params.bookingPrice}(propertyId, date);
+
+        uint256 pps_fee = marketplace.platformFeePPS();
+
+        uint256 expectedOwnerBalanceAfterFee = renter0params.rentPrice - ((renter0params.rentPrice * pps_fee) / 1000000);
+
+        assertEq(
+            owner.balance, renter0params.rentSecurity + expectedOwnerBalanceAfterFee, "Owner final balance mismatch"
+        );
+        uint256 expectedRenter1BalanceAfterFee = renter1Params.rentPrice - renter0params.rentPrice
+            - ((renter1Params.rentPrice - renter0params.rentPrice) * pps_fee) / 1000000;
+        assertEq(
+            renter1.balance,
+            renter1Params.rentSecurity + expectedRenter1BalanceAfterFee,
+            "Renter1 final balance mismatch"
+        );
+        uint256 expectedRenter2BalanceAfterFee = renter2Params.bookingPrice - renter1Params.rentPrice
+            - ((renter2Params.bookingPrice - renter1Params.rentPrice) * pps_fee) / 1000000;
+        assertEq(
+            renter2.balance,
+            renter2Params.bookingSecurity + expectedRenter2BalanceAfterFee,
+            "Renter2 final balance mismatch"
+        );
     }
 
     function _assertListing(
