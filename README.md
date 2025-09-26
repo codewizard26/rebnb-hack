@@ -48,7 +48,17 @@ $ anvil
 ### Deploy
 
 ```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+# 0G Testnet values
+# RPC URL: https://evmrpc-testnet.0g.ai
+# Chain ID: 16601
+
+# Example: deploy TokenizedProperty + Marketplace
+TOKEN_NAME=AirbnbProperty TOKEN_SYMBOL=ABNB BASE_URI=https://example.com/metadata/ \
+forge script script/Deploy.s.sol:Deploy \
+  --rpc-url https://evmrpc-testnet.0g.ai \
+  --chain-id 16601 \
+  --broadcast \
+  --private-key <YOUR_PRIVATE_KEY>
 ```
 
 ### Cast
