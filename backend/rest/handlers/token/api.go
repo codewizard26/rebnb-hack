@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -30,12 +33,19 @@ type MintRequest struct {
 	PropertyAddress string      `json:"property_address" binding:"required"`
 	Description     string      `json:"description" binding:"required"`
 	Services        []string    `json:"services"`
-	Images          []string    `json:"images"`
+	Image           string      `json:"image"` // Single image instead of array
 	To              string      `json:"to" binding:"required"`
 	ExternalUrl     string      `json:"external_url,omitempty"`
 	Attributes      []Attribute `json:"attributes,omitempty"`
 	// PrivateKey      string      `json:"privateKey" binding:"required"`
 	// Broadcast bool `json:"broadcast,omitempty"`
+}
+
+// ImageUploadResponse represents the response for image upload
+type ImageUploadResponse struct {
+	Success   bool     `json:"success"`
+	ImageURLs []string `json:"image_urls,omitempty"`
+	Error     string   `json:"error,omitempty"`
 }
 
 // Attribute represents NFT metadata attributes
@@ -131,6 +141,81 @@ type ListingRequest struct {
 	BookingSecurity string `json:"bookingSecurity"`
 }
 
+// ListingData represents the complete listing data to be saved to IPFS
+type ListingData struct {
+	PropertyName    string `json:"property_name"`
+	Description     string `json:"description"`
+	Image           string `json:"image"`
+	Date            string `json:"date"`
+	RentPrice       string `json:"rent_price"`
+	RentSecurity    string `json:"rent_security"`
+	BookingPrice    string `json:"booking_price"`
+	BookingSecurity string `json:"booking_security"`
+}
+
+// PinataUploadResponse represents Pinata's upload response
+type PinataUploadResponse struct {
+	IpfsHash  string `json:"IpfsHash"`
+	PinSize   int    `json:"PinSize"`
+	Timestamp string `json:"Timestamp"`
+}
+
+// pinJSONToIPFS pins JSON data to Pinata IPFS using the JSON pinning endpoint
+func pinJSONToIPFS(data interface{}) (string, error) {
+
+	// Create the request payload for JSON pinning
+	requestPayload := map[string]interface{}{
+		"pinataContent": data,
+		"pinataMetadata": map[string]interface{}{
+			"name": "listing-data",
+		},
+	}
+
+	// Convert payload to JSON
+	jsonPayload, err := json.Marshal(requestPayload)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request payload: %v", err)
+	}
+
+	// Create request to Pinata JSON pinning endpoint
+	req, err := http.NewRequest("POST", "https://api.pinata.cloud/pinning/pinJSONToIPFS", bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %v", err)
+	}
+
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("pinata_api_key", os.Getenv("PINATA_API_KEY"))
+	req.Header.Set("pinata_secret_api_key", os.Getenv("PINATA_SECRET_API_KEY"))
+
+	// Send request
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("pinata API error (status %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	// Parse response
+	var pinataResp PinataUploadResponse
+	err = json.Unmarshal(respBody, &pinataResp)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse response: %v", err)
+	}
+
+	return pinataResp.IpfsHash, nil
+}
+
 func CreateListing(c *gin.Context) {
 	var request ListingRequest
 
@@ -150,7 +235,54 @@ func CreateListing(c *gin.Context) {
 		return
 	}
 
-	// Convert and validate propertyId
+	ctx := context.Background()
+
+	// Fetch property details from database
+	property, err := db.MongoClient.GetPropertyByID(ctx, request.PropertyId)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Property not found: " + err.Error(),
+		})
+		return
+	}
+
+	// Create listing data object combining property info with listing attributes
+	listingData := ListingData{
+		PropertyName:    property.PropertyName,
+		Description:     property.Description,
+		Image:           property.Image,
+		Date:            request.Date,
+		RentPrice:       request.RentPrice,
+		RentSecurity:    request.RentSecurity,
+		BookingPrice:    request.BookingPrice,
+		BookingSecurity: request.BookingSecurity,
+	}
+
+	// Pin JSON data to IPFS
+	ipfsHash, err := pinJSONToIPFS(listingData)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to pin data to IPFS: " + err.Error(),
+		})
+		return
+	}
+
+	// Create listing entry in database
+	listing := &db.Listing{
+		PropertyID: request.PropertyId,
+		Date:       request.Date,
+		IPFSHash:   ipfsHash,
+	}
+
+	err = db.MongoClient.InsertListing(ctx, listing)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to save listing to database: " + err.Error(),
+		})
+		return
+	}
+
+	// Convert and validate numeric fields for blockchain transaction
 	propertyIdInt, err := strconv.ParseUint(request.PropertyId, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -159,7 +291,6 @@ func CreateListing(c *gin.Context) {
 		return
 	}
 
-	// Convert and validate date
 	dateInt, err := strconv.ParseUint(request.Date, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -168,7 +299,6 @@ func CreateListing(c *gin.Context) {
 		return
 	}
 
-	// Convert and validate rent price
 	rentPriceInt, err := strconv.ParseUint(request.RentPrice, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -177,7 +307,6 @@ func CreateListing(c *gin.Context) {
 		return
 	}
 
-	// Convert and validate rent security
 	rentSecurityInt, err := strconv.ParseUint(request.RentSecurity, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -186,7 +315,6 @@ func CreateListing(c *gin.Context) {
 		return
 	}
 
-	// Convert and validate booking price
 	bookingPriceInt, err := strconv.ParseUint(request.BookingPrice, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -195,7 +323,6 @@ func CreateListing(c *gin.Context) {
 		return
 	}
 
-	// Convert and validate booking security
 	bookingSecurityInt, err := strconv.ParseUint(request.BookingSecurity, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -242,13 +369,10 @@ func CreateListing(c *gin.Context) {
 	contract, err := GetContract("marketplace")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get chain: " + err.Error(),
+			"error": "Failed to get contract: " + err.Error(),
 		})
 		return
 	}
-
-	// TODO: Get marketplace contract address from configuration
-	// For now, using a placeholder - this should be configured properly
 
 	// Create the transaction data
 	transactionData := MintTransactionData{
@@ -258,9 +382,15 @@ func CreateListing(c *gin.Context) {
 		Value:   "0x0", // No ETH value needed for creating listing
 	}
 
-	// Create the response
-	response := TxnResponse{
-		Msg: transactionData,
+	// Create the response including IPFS hash
+	response := gin.H{
+		"success":     true,
+		"ipfs_hash":   ipfsHash,
+		"property_id": request.PropertyId,
+		"date":        request.Date,
+		"transaction": TxnResponse{
+			Msg: transactionData,
+		},
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -334,89 +464,6 @@ func loadPropertyABI() (*abi.ABI, error) {
 	return &contractABI, nil
 }
 
-// // CreateMintMessage creates a transaction meVjssage for minting a property token
-// func CreateMintMessage(c *gin.Context) {
-// 	var req MintRequest
-
-// 	// Bind and validate the request
-// 	if err := c.ShouldBindJSON(&req); err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{
-// 			"error": "Invalid request payload: " + err.Error(),
-// 		})
-// 		return
-// 	}
-
-// 	// Validate the address format
-// 	if !common.IsHexAddress(req.To) {
-// 		c.JSON(http.StatusBadRequest, gin.H{
-// 			"error": "Invalid address format",
-// 		})
-// 		return
-// 	}
-
-// 	// Validate propertyId is a valid number
-// 	propertyIdInt, err := strconv.ParseUint(req.PropertyId, 10, 64)
-// 	if err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{
-// 			"error": "Invalid propertyId: must be a valid number",
-// 		})
-// 		return
-// 	}
-
-// 	// Load the contract ABI
-// 	contractABI, err := loadPropertyABI()
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{
-// 			"error": "Failed to load contract ABI: " + err.Error(),
-// 		})
-// 		return
-// 	}
-
-// 	// Convert parameters to proper types
-// 	toAddress := common.HexToAddress(req.To)
-// 	propertyId := new(big.Int).SetUint64(propertyIdInt)
-
-// 	// Encode the function call using ABI
-// 	data, err := contractABI.Pack("mint", toAddress, propertyId)
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{
-// 			"error": "Failed to encode function call: " + err.Error(),
-// 		})
-// 		return
-// 	}
-
-// 	chain, err := GetChain("unichain")
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{
-// 			"error": "Failed to get chain: " + err.Error(),
-// 		})
-// 		return
-// 	}
-
-// 	contract, err := GetContract("property")
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{
-// 			"error": "Failed to get chain: " + err.Error(),
-// 		})
-// 		return
-// 	}
-
-// 	// Create the transaction data
-// 	transactionData := MintTransactionData{
-// 		ChainId: chain.ChainID, // Base Sepolia testnet chain ID
-// 		To:      contract,
-// 		Data:    "0x" + common.Bytes2Hex(data),
-// 		Value:   "0x0", // No ETH value needed for minting
-// 	}
-
-// 	// Create the response
-// 	response := TxnResponse{
-// 		Msg: transactionData,
-// 	}
-
-// 	c.JSON(http.StatusOK, response)
-// }
-
 // GetChain fetches chain data for a specific chain from MongoDB
 func GetChain(chainName string) (*Chain, error) {
 	ctx := context.Background()
@@ -460,7 +507,6 @@ func GetContract(contractType string) (string, error) {
 
 // uploadToIPFS uploads JSON metadata to Pinata IPFS
 func uploadToIPFS(metadata NFTMetadata, pinataJWT string) (*PinataResponse, error) {
-
 	// Create the request payload for Pinata
 	pinataPayload := map[string]interface{}{
 		"pinataOptions": map[string]interface{}{
@@ -490,7 +536,6 @@ func uploadToIPFS(metadata NFTMetadata, pinataJWT string) (*PinataResponse, erro
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("pinata_api_key", os.Getenv("PINATA_API_KEY"))
 	req.Header.Set("pinata_secret_api_key", os.Getenv("PINATA_SECRET_API_KEY"))
-	fmt.Println(req.Header)
 
 	// Make the request
 	client := &http.Client{Timeout: 30 * time.Second}
@@ -577,16 +622,412 @@ func broadcastTransaction(rpcURL string, privateKeyHex string, to common.Address
 	return signedTx.Hash().Hex(), nil
 }
 
+// UploadImages handles multiple image uploads and saves them to the local uploads directory
+func UploadImages(c *gin.Context) {
+	// Parse multipart form with max memory of 32MB
+	err := c.Request.ParseMultipartForm(32 << 20)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ImageUploadResponse{
+			Success: false,
+			Error:   "Failed to parse multipart form: " + err.Error(),
+		})
+		return
+	}
+
+	files := c.Request.MultipartForm.File["images"]
+	if len(files) == 0 {
+		c.JSON(http.StatusBadRequest, ImageUploadResponse{
+			Success: false,
+			Error:   "No images provided",
+		})
+		return
+	}
+
+	var imageURLs []string
+	uploadsDir := "uploads/images"
+
+	// Ensure uploads directory exists
+	if err := os.MkdirAll(uploadsDir, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, ImageUploadResponse{
+			Success: false,
+			Error:   "Failed to create uploads directory: " + err.Error(),
+		})
+		return
+	}
+
+	for _, fileHeader := range files {
+		// Validate file type
+		if !isValidImageType(fileHeader.Header.Get("Content-Type")) {
+			c.JSON(http.StatusBadRequest, ImageUploadResponse{
+				Success: false,
+				Error:   "Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed",
+			})
+			return
+		}
+
+		// Validate file size (max 10MB)
+		if fileHeader.Size > 10<<20 {
+			c.JSON(http.StatusBadRequest, ImageUploadResponse{
+				Success: false,
+				Error:   "File size too large. Maximum size is 10MB",
+			})
+			return
+		}
+
+		// Generate unique filename
+		ext := filepath.Ext(fileHeader.Filename)
+		filename := fmt.Sprintf("%d%s", time.Now().UnixNano(), ext)
+		filePath := filepath.Join(uploadsDir, filename)
+
+		// Save file
+		if err := saveUploadedFile(fileHeader, filePath); err != nil {
+			c.JSON(http.StatusInternalServerError, ImageUploadResponse{
+				Success: false,
+				Error:   "Failed to save file: " + err.Error(),
+			})
+			return
+		}
+
+		// Create URL for the uploaded image
+		imageURL := fmt.Sprintf("/api/v1/images/%s", filename)
+		imageURLs = append(imageURLs, imageURL)
+	}
+
+	c.JSON(http.StatusOK, ImageUploadResponse{
+		Success:   true,
+		ImageURLs: imageURLs,
+	})
+}
+
+// isValidImageType checks if the content type is a valid image type
+func isValidImageType(contentType string) bool {
+	validTypes := []string{
+		"image/jpeg",
+		"image/jpg",
+		"image/png",
+		"image/gif",
+		"image/webp",
+	}
+
+	for _, validType := range validTypes {
+		if contentType == validType {
+			return true
+		}
+	}
+	return false
+}
+
+// saveUploadedFile saves the uploaded file to the specified path
+func saveUploadedFile(fileHeader *multipart.FileHeader, dst string) error {
+	src, err := fileHeader.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, src)
+	return err
+}
+func processImageFromRequest(imageData string) (string, error) {
+	if imageData == "" {
+		return "", nil // No image provided
+	}
+
+	uploadsDir := "uploads/images"
+
+	// Ensure uploads directory exists
+	if err := os.MkdirAll(uploadsDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create uploads directory: %v", err)
+	}
+
+	var imageURL string
+	var err error
+
+	// Check if it's a base64 data URL (starts with "data:image/")
+	if strings.HasPrefix(imageData, "data:image/") {
+		imageURL, err = saveBase64Image(imageData, uploadsDir)
+		if err != nil {
+			return "", fmt.Errorf("failed to save base64 image: %v", err)
+		}
+	} else if strings.HasPrefix(imageData, "http://") || strings.HasPrefix(imageData, "https://") {
+		// It's a URL, download and save the image
+		imageURL, err = downloadAndSaveImage(imageData, uploadsDir)
+		if err != nil {
+			return "", fmt.Errorf("failed to download and save image: %v", err)
+		}
+	} else {
+		// Assume it's already a local path or filename
+		imageURL = imageData
+	}
+
+	return imageURL, nil
+}
+
+// saveBase64Image saves a base64 encoded image to the uploads directory
+func saveBase64Image(dataURL, uploadsDir string) (string, error) {
+	// Parse the data URL
+	// Format: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD...
+	parts := strings.Split(dataURL, ",")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid data URL format")
+	}
+
+	// Extract MIME type
+	header := parts[0]
+	mimeType := ""
+	if strings.Contains(header, "image/jpeg") || strings.Contains(header, "image/jpg") {
+		mimeType = "jpeg"
+	} else if strings.Contains(header, "image/png") {
+		mimeType = "png"
+	} else if strings.Contains(header, "image/gif") {
+		mimeType = "gif"
+	} else if strings.Contains(header, "image/webp") {
+		mimeType = "webp"
+	} else {
+		return "", fmt.Errorf("unsupported image type")
+	}
+
+	// Decode base64 data
+	imageData, err := base64.StdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", fmt.Errorf("failed to decode base64 data: %v", err)
+	}
+
+	// Generate unique filename
+	filename := fmt.Sprintf("%d.%s", time.Now().UnixNano(), mimeType)
+	filePath := filepath.Join(uploadsDir, filename)
+
+	// Save file
+	if err := os.WriteFile(filePath, imageData, 0644); err != nil {
+		return "", fmt.Errorf("failed to write image file: %v", err)
+	}
+
+	// Return URL path
+	return fmt.Sprintf("/api/v1/images/%s", filename), nil
+}
+
+// downloadAndSaveImage downloads an image from a URL and saves it locally
+func downloadAndSaveImage(imageURL, uploadsDir string) (string, error) {
+	// Download the image
+	resp, err := http.Get(imageURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to download image: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to download image: status %d", resp.StatusCode)
+	}
+
+	// Read image data
+	imageData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read image data: %v", err)
+	}
+
+	// Determine file extension from Content-Type
+	contentType := resp.Header.Get("Content-Type")
+	var ext string
+	switch contentType {
+	case "image/jpeg", "image/jpg":
+		ext = "jpg"
+	case "image/png":
+		ext = "png"
+	case "image/gif":
+		ext = "gif"
+	case "image/webp":
+		ext = "webp"
+	default:
+		ext = "jpg" // default to jpg
+	}
+
+	// Generate unique filename
+	filename := fmt.Sprintf("%d.%s", time.Now().UnixNano(), ext)
+	filePath := filepath.Join(uploadsDir, filename)
+
+	// Save file
+	if err := os.WriteFile(filePath, imageData, 0644); err != nil {
+		return "", fmt.Errorf("failed to write image file: %v", err)
+	}
+
+	// Return URL path
+	return fmt.Sprintf("/api/v1/images/%s", filename), nil
+}
+
+// RedirectToIPFS redirects to the IPFS URL based on property ID
+func RedirectToIPFS(c *gin.Context) {
+	propertyID := c.Param("property_id")
+	if propertyID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Property ID is required",
+		})
+		return
+	}
+
+	// Get property from database
+	ctx := context.Background()
+	property, err := db.MongoClient.GetPropertyByID(ctx, propertyID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Property not found: " + err.Error(),
+		})
+		return
+	}
+
+	// Redirect to the actual IPFS URL
+	ipfsURL := fmt.Sprintf("https://pink-improved-swift-480.mypinata.cloud/ipfs/%s", property.IPFSHash)
+
+	// Redirect to the IPFS URL
+	c.Redirect(http.StatusFound, ipfsURL)
+}
+
+// GetPropertyInfo returns property information by property ID
+func GetPropertyInfo(c *gin.Context) {
+	propertyID := c.Param("property_id")
+	if propertyID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Property ID is required",
+		})
+		return
+	}
+
+	// Get property from database
+	ctx := context.Background()
+	property, err := db.MongoClient.GetPropertyByID(ctx, propertyID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Property not found: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, property)
+}
+
 // CreateMintWithIPFS creates a mint transaction with IPFS metadata upload and optional broadcasting
 func CreateMintMessage(c *gin.Context) {
 	var req MintRequest
+	var processedImageURL string
 
-	// Bind and validate the request
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, MintWithIPFSResponse{
-			Error: "Invalid request payload: " + err.Error(),
-		})
-		return
+	// Check content type to determine how to parse the request
+	contentType := c.GetHeader("Content-Type")
+
+	if strings.Contains(contentType, "multipart/form-data") {
+		// Handle multipart form data
+		err := c.Request.ParseMultipartForm(32 << 20) // 32MB max memory
+		if err != nil {
+			c.JSON(http.StatusBadRequest, MintWithIPFSResponse{
+				Error: "Failed to parse multipart form: " + err.Error(),
+			})
+			return
+		}
+
+		// Extract form values
+		form := c.Request.MultipartForm
+
+		// Helper function to get form value
+		getFormValue := func(key string) string {
+			if values, exists := form.Value[key]; exists && len(values) > 0 {
+				return values[0]
+			}
+			return ""
+		}
+
+		// Create request struct from form data
+		req = MintRequest{
+			PropertyName:    getFormValue("property_name"),
+			PropertyAddress: getFormValue("property_address"),
+			Description:     getFormValue("description"),
+			To:              getFormValue("to"),
+			ExternalUrl:     getFormValue("external_url"),
+		}
+
+		// Validate required fields
+		if req.PropertyName == "" {
+			c.JSON(http.StatusBadRequest, MintWithIPFSResponse{
+				Error: "property_name is required",
+			})
+			return
+		}
+		if req.PropertyAddress == "" {
+			c.JSON(http.StatusBadRequest, MintWithIPFSResponse{
+				Error: "property_address is required",
+			})
+			return
+		}
+		if req.Description == "" {
+			c.JSON(http.StatusBadRequest, MintWithIPFSResponse{
+				Error: "description is required",
+			})
+			return
+		}
+		if req.To == "" {
+			c.JSON(http.StatusBadRequest, MintWithIPFSResponse{
+				Error: "to address is required",
+			})
+			return
+		}
+
+		// Handle image upload if present
+		if files, exists := form.File["image"]; exists && len(files) > 0 {
+			fileHeader := files[0]
+
+			// Validate file type
+			if !isValidImageType(fileHeader.Header.Get("Content-Type")) {
+				c.JSON(http.StatusBadRequest, MintWithIPFSResponse{
+					Error: "Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed",
+				})
+				return
+			}
+
+			// Validate file size (max 10MB)
+			if fileHeader.Size > 10<<20 {
+				c.JSON(http.StatusBadRequest, MintWithIPFSResponse{
+					Error: "File size too large. Maximum size is 10MB",
+				})
+				return
+			}
+
+			// Generate unique filename
+			ext := filepath.Ext(fileHeader.Filename)
+			filename := fmt.Sprintf("%d%s", time.Now().UnixNano(), ext)
+			uploadsDir := "uploads/images"
+
+			// Ensure uploads directory exists
+			if err := os.MkdirAll(uploadsDir, 0755); err != nil {
+				c.JSON(http.StatusInternalServerError, MintWithIPFSResponse{
+					Error: "Failed to create uploads directory: " + err.Error(),
+				})
+				return
+			}
+
+			filePath := filepath.Join(uploadsDir, filename)
+
+			// Save file
+			if err := saveUploadedFile(fileHeader, filePath); err != nil {
+				c.JSON(http.StatusInternalServerError, MintWithIPFSResponse{
+					Error: "Failed to save file: " + err.Error(),
+				})
+				return
+			}
+
+			// Create URL for the uploaded image
+			processedImageURL = fmt.Sprintf("https://api.rebnb.sumitdhiman.in/api/v1/images/%s", filename)
+		}
+	} else {
+		// Handle JSON data (original behavior)
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, MintWithIPFSResponse{
+				Error: "Invalid request payload: " + err.Error(),
+			})
+			return
+		}
 	}
 
 	// Validate the address format
@@ -607,13 +1048,17 @@ func CreateMintMessage(c *gin.Context) {
 		return
 	}
 
-	// Get Pinata JWT from environment
-	pinataJWT := os.Getenv("PINATA_JWT")
-	if pinataJWT == "" {
-		c.JSON(http.StatusInternalServerError, MintWithIPFSResponse{
-			Error: "Pinata JWT not configured",
-		})
-		return
+	// Process single image from request body (base64, URL, etc.) and save it locally
+	// For JSON requests, process the image field; for multipart, processedImageURL is already set
+	if processedImageURL == "" && req.Image != "" {
+		var processErr error
+		processedImageURL, processErr = processImageFromRequest(req.Image)
+		if processErr != nil {
+			c.JSON(http.StatusInternalServerError, MintWithIPFSResponse{
+				Error: "Failed to process image: " + processErr.Error(),
+			})
+			return
+		}
 	}
 
 	// Create NFT metadata
@@ -624,9 +1069,9 @@ func CreateMintMessage(c *gin.Context) {
 		Attributes:  req.Attributes,
 	}
 
-	// Set image URL if provided
-	if len(req.Images) > 0 {
-		metadata.Image = req.Images[0]
+	// Set image URL if processed image is available
+	if processedImageURL != "" {
+		metadata.Image = processedImageURL
 	}
 
 	// Add default attributes if none provided
@@ -648,7 +1093,16 @@ func CreateMintMessage(c *gin.Context) {
 		}
 	}
 
-	// Upload to IPFS via Pinata
+	// Get Pinata JWT from environment
+	pinataJWT := os.Getenv("PINATA_JWT")
+	if pinataJWT == "" {
+		c.JSON(http.StatusInternalServerError, MintWithIPFSResponse{
+			Error: "Pinata JWT not configured",
+		})
+		return
+	}
+
+	// Upload metadata to IPFS via Pinata
 	pinataResp, err := uploadToIPFS(metadata, pinataJWT)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, MintWithIPFSResponse{
@@ -657,8 +1111,25 @@ func CreateMintMessage(c *gin.Context) {
 		return
 	}
 
-	// Create token URI
+	// Create token URI pointing to IPFS
 	tokenURI := fmt.Sprintf("https://pink-improved-swift-480.mypinata.cloud/ipfs/%s", pinataResp.IPFSHash)
+
+	// Store property data in database
+	property := &db.Property{
+		PropertyID:      ppId,
+		IPFSHash:        pinataResp.IPFSHash, // Using actual IPFS hash
+		WalletAddress:   req.To,
+		PropertyName:    req.PropertyName,
+		PropertyAddress: req.PropertyAddress,
+		Description:     req.Description,
+		Image:           processedImageURL,
+	}
+
+	ctx := context.Background()
+	if err := db.MongoClient.InsertProperty(ctx, property); err != nil {
+		// Log the error but don't fail the request
+		fmt.Printf("Warning: Failed to store property in database: %v\n", err)
+	}
 
 	// Load the contract ABI
 	contractABI, err := loadPropertyABI()
@@ -702,7 +1173,7 @@ func CreateMintMessage(c *gin.Context) {
 	// Create the transaction data
 
 	response := MintWithIPFSResponse{
-		IPFSHash:   pinataResp.IPFSHash,
+		IPFSHash:   pinataResp.IPFSHash, // Using actual IPFS hash
 		TokenURI:   tokenURI,
 		PropertyId: ppId,
 	}
@@ -746,4 +1217,31 @@ func CreateMintMessage(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+func GetMetadataForListing(c *gin.Context) {
+	propertyId := c.Param("property_id")
+	if propertyId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Property ID is required",
+		})
+		return
+	}
+	date := c.Param("date")
+	if propertyId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Property ID is required",
+		})
+		return
+	}
+
+	property, err := db.MongoClient.GetListingByPropertyAndDate(context.TODO(), propertyId, date)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Property not found: " + err.Error(),
+		})
+		return
+	}
+
+	http.Redirect(c.Writer, c.Request, "https://pink-improved-swift-480.mypinata.cloud/ipfs/"+property.IPFSHash, http.StatusFound)
 }

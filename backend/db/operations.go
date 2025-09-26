@@ -31,6 +31,30 @@ type Chain struct {
 	UpdatedAt time.Time          `bson:"updated_at" json:"updated_at"`
 }
 
+// Property represents a property document in MongoDB
+type Property struct {
+	ID              primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	PropertyID      string             `bson:"property_id" json:"property_id"`
+	IPFSHash        string             `bson:"ipfs_hash" json:"ipfs_hash"`
+	WalletAddress   string             `bson:"wallet_address" json:"wallet_address"`
+	PropertyName    string             `bson:"property_name" json:"property_name"`
+	PropertyAddress string             `bson:"property_address" json:"property_address"`
+	Description     string             `bson:"description" json:"description"`
+	Image           string             `bson:"image" json:"image"`
+	CreatedAt       time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt       time.Time          `bson:"updated_at" json:"updated_at"`
+}
+
+// Listing represents a listing document in MongoDB
+type Listing struct {
+	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	PropertyID string             `bson:"property_id" json:"property_id"`
+	Date       string             `bson:"date" json:"date"`
+	IPFSHash   string             `bson:"ipfs_hash" json:"ipfs_hash"`
+	CreatedAt  time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt  time.Time          `bson:"updated_at" json:"updated_at"`
+}
+
 // QueryResult represents a query result with metadata
 type QueryResult struct {
 	Data  []map[string]interface{} `json:"data"`
@@ -72,6 +96,34 @@ func (c *Client) InitializeCollections(ctx context.Context) error {
 	if _, err := chainsCollection.Indexes().CreateOne(ctx, chainsIndexModel); err != nil {
 		// Index might already exist, log but don't fail
 		log.Printf("Info: chains index creation: %v", err)
+	}
+
+	// Create properties collection with unique index on property_id
+	propertiesCollection := c.GetCollection("properties")
+
+	// Create unique index on property_id field
+	propertiesIndexModel := mongo.IndexModel{
+		Keys:    bson.D{{Key: "property_id", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	}
+
+	if _, err := propertiesCollection.Indexes().CreateOne(ctx, propertiesIndexModel); err != nil {
+		// Index might already exist, log but don't fail
+		log.Printf("Info: properties index creation: %v", err)
+	}
+
+	// Create listings collection with compound index on property_id and date
+	listingsCollection := c.GetCollection("listings")
+
+	// Create compound index on property_id and date fields
+	listingsIndexModel := mongo.IndexModel{
+		Keys:    bson.D{{Key: "property_id", Value: 1}, {Key: "date", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	}
+
+	if _, err := listingsCollection.Indexes().CreateOne(ctx, listingsIndexModel); err != nil {
+		// Index might already exist, log but don't fail
+		log.Printf("Info: listings index creation: %v", err)
 	}
 
 	return nil
@@ -250,4 +302,148 @@ func (c *Client) CollectionExists(ctx context.Context, collectionName string) (b
 func (c *Client) DropCollection(ctx context.Context, collectionName string) error {
 	collection := c.GetCollection(collectionName)
 	return collection.Drop(ctx)
+}
+
+// InsertProperty inserts a new property into the database
+func (c *Client) InsertProperty(ctx context.Context, property *Property) error {
+	collection := c.GetCollection("properties")
+
+	property.CreatedAt = time.Now()
+	property.UpdatedAt = time.Now()
+
+	_, err := collection.InsertOne(ctx, property)
+	if err != nil {
+		return fmt.Errorf("failed to insert property: %w", err)
+	}
+
+	return nil
+}
+
+// GetPropertyByID retrieves a property by property_id
+func (c *Client) GetPropertyByID(ctx context.Context, propertyID string) (*Property, error) {
+	collection := c.GetCollection("properties")
+
+	var property Property
+	filter := bson.D{{Key: "property_id", Value: propertyID}}
+
+	if err := collection.FindOne(ctx, filter).Decode(&property); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("property with ID '%s' not found", propertyID)
+		}
+		return nil, fmt.Errorf("failed to get property: %w", err)
+	}
+
+	return &property, nil
+}
+
+// GetPropertiesByWallet retrieves all properties for a wallet address
+func (c *Client) GetPropertiesByWallet(ctx context.Context, walletAddress string) ([]Property, error) {
+	collection := c.GetCollection("properties")
+
+	filter := bson.D{{Key: "wallet_address", Value: walletAddress}}
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find properties: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var properties []Property
+	if err := cursor.All(ctx, &properties); err != nil {
+		return nil, fmt.Errorf("failed to decode properties: %w", err)
+	}
+
+	return properties, nil
+}
+
+// UpdateProperty updates an existing property
+func (c *Client) UpdateProperty(ctx context.Context, propertyID string, updates bson.D) error {
+	collection := c.GetCollection("properties")
+
+	filter := bson.D{{Key: "property_id", Value: propertyID}}
+	update := bson.D{
+		{Key: "$set", Value: append(updates, bson.E{Key: "updated_at", Value: time.Now()})},
+	}
+
+	result, err := collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update property: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("property with ID '%s' not found", propertyID)
+	}
+
+	return nil
+}
+
+// InsertListing inserts a new listing into the database
+func (c *Client) InsertListing(ctx context.Context, listing *Listing) error {
+	collection := c.GetCollection("listings")
+
+	listing.CreatedAt = time.Now()
+	listing.UpdatedAt = time.Now()
+
+	_, err := collection.InsertOne(ctx, listing)
+	if err != nil {
+		return fmt.Errorf("failed to insert listing: %w", err)
+	}
+
+	return nil
+}
+
+// GetListingByPropertyAndDate retrieves a listing by property_id and date
+func (c *Client) GetListingByPropertyAndDate(ctx context.Context, propertyID, date string) (*Listing, error) {
+	collection := c.GetCollection("listings")
+
+	var listing Listing
+	filter := bson.D{{Key: "property_id", Value: propertyID}, {Key: "date", Value: date}}
+
+	if err := collection.FindOne(ctx, filter).Decode(&listing); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("listing for property '%s' and date '%s' not found", propertyID, date)
+		}
+		return nil, fmt.Errorf("failed to get listing: %w", err)
+	}
+
+	return &listing, nil
+}
+
+// GetListingsByProperty retrieves all listings for a property
+func (c *Client) GetListingsByProperty(ctx context.Context, propertyID string) ([]Listing, error) {
+	collection := c.GetCollection("listings")
+
+	filter := bson.D{{Key: "property_id", Value: propertyID}}
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find listings: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var listings []Listing
+	if err := cursor.All(ctx, &listings); err != nil {
+		return nil, fmt.Errorf("failed to decode listings: %w", err)
+	}
+
+	return listings, nil
+}
+
+// UpdateListing updates an existing listing
+func (c *Client) UpdateListing(ctx context.Context, propertyID, date string, updates bson.D) error {
+	collection := c.GetCollection("listings")
+
+	filter := bson.D{{Key: "property_id", Value: propertyID}, {Key: "date", Value: date}}
+	update := bson.D{
+		{Key: "$set", Value: append(updates, bson.E{Key: "updated_at", Value: time.Now()})},
+	}
+
+	result, err := collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update listing: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("listing for property '%s' and date '%s' not found", propertyID, date)
+	}
+
+	return nil
 }
