@@ -1,4 +1,3 @@
-// sharedUtils.ts
 import fs from 'fs';
 import path from 'path';
 
@@ -54,6 +53,24 @@ export function imageToBase64DataUrl(imagePath: string): string {
   } catch (error) {
     throw new Error(`Failed to read image file or generate data URL: ${imagePath}. Error: ${error}`);
   }
+}
+
+// Helper function to extract JSON from markdown code blocks
+export function extractJsonFromMarkdown(text: string): string {
+  // Remove markdown code block markers
+  const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (jsonMatch) {
+    return jsonMatch[1].trim();
+  }
+  
+  // If no code blocks found, try to find JSON object in the text
+  const jsonObjectMatch = text.match(/\{[\s\S]*\}/);
+  if (jsonObjectMatch) {
+    return jsonObjectMatch[0].trim();
+  }
+  
+  // Return original text if no JSON found
+  return text.trim();
 }
 
 // Common types

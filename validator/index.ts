@@ -45,7 +45,7 @@ async function testValidators() {
     // Test image validation
     console.log("=== Testing Image Validation ===");
     await validator.validateImage(
-      "https://drive.usercontent.google.com/download?id=13YMcpVKiXP4IqRFQUgrjEciYY1fq9fMF&export=view&authuser=0", 
+      "https://fastly.picsum.photos/id/165/536/354.jpg?hmac=3U0MeDyOPgSqPmDhXtEZRTWV80bfX3cmko0I2uXX244", 
       "Validate this property listing image"
     );
 

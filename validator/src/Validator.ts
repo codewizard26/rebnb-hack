@@ -1,13 +1,11 @@
 // Validator.ts
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { image_system_prompt, text_system_prompt } from './system_prompt';
-import { createLLM, ValidationResult } from './sharedUtils';
+import { createLLM, ValidationResult, extractJsonFromMarkdown } from './sharedUtils';
 
 export class Validator {
   constructor() {
-    // No initialization needed for OpenAI-only setup
   }
-
   /**
    * Validates an image using AI analysis
    * @param imageInput - URL or path to the image
@@ -53,7 +51,8 @@ export class Validator {
       console.log("Raw Output:", response.content);
 
       try {
-        const parsedOutput = JSON.parse(response.content as string);
+        const cleanedJson = extractJsonFromMarkdown(response.content as string);
+        const parsedOutput = JSON.parse(cleanedJson);
         console.log("Parsed JSON Output:", parsedOutput);
         return parsedOutput;
       } catch (parseError) {
@@ -110,7 +109,8 @@ export class Validator {
       console.log("Raw Output:", response.content);
 
       try {
-        const parsedOutput = JSON.parse(response.content as string);
+        const cleanedJson = extractJsonFromMarkdown(response.content as string);
+        const parsedOutput = JSON.parse(cleanedJson);
         console.log("Parsed JSON Output:", parsedOutput);
         return parsedOutput;
       } catch (parseError) {

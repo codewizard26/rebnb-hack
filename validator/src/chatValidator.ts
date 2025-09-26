@@ -1,7 +1,7 @@
 // chatValidator.ts
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { text_system_prompt } from './system_prompt';
-import { createLLM, ValidationResult } from './sharedUtils';
+import { createLLM, ValidationResult, extractJsonFromMarkdown } from './sharedUtils';
 
 // Function for text-only validation
 export async function validateText(textPrompt: string): Promise<ValidationResult> {
@@ -30,7 +30,8 @@ export async function validateText(textPrompt: string): Promise<ValidationResult
     console.log("Raw Output:", response.content);
 
     try {
-      const parsedOutput = JSON.parse(response.content as string);
+      const cleanedJson = extractJsonFromMarkdown(response.content as string);
+      const parsedOutput = JSON.parse(cleanedJson);
       console.log("Parsed JSON Output:", parsedOutput);
       return parsedOutput;
     } catch (parseError) {
