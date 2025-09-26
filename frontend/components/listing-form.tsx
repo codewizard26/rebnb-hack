@@ -7,27 +7,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/store/useAppStore";
-import { useGenerateListingMsg } from "@/hooks/useGenerateListing";
+import { useGenerateListingMsg, useCreateProperty, generatePropertyId } from "@/hooks/useGenerateListing";
+import { useCreatePropertyWithSigning } from "@/hooks/useExecuteProperty";
 
 // Function to post listing data to your backend
-async function postListing(listing: any) {
-  const res = await fetch("/api/listings", {  // Replace with your endpoint
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(listing),
-  });
 
-  if (!res.ok) {
-    throw new Error("Failed to create listing");
-  }
-
-  return res.json();
+export interface TxResult {
+  chainId: string;
+  data: string;
+  to: string;
+  value: string;
 }
 
 export function ListingForm() {
-  const addListing = useAppStore((s) => s.addListing);
+
 
   const [name, setName] = useState("");
   const [image, setImage] = useState("");
@@ -36,56 +29,175 @@ export function ListingForm() {
   const [bookingPrice, setBookingPrice] = useState(0);
   const [bookingSecurity, setBookingSecurity] = useState(0);
   const [location, setLocation] = useState("");
-  const [listingMsg,setListingMsg]=useState("");
-  const [txhash,setTxhash]=useState("");
-  const{mutateAsync:handleListingMsg}=useGenerateListingMsg();
-  const{mutateAsync:handleStartList}=useHandleStart
+  const [listingMsg, setListingMsg] = useState("");
+  const [txhash, setTxhash] = useState("");
+  const [propertyId, setPropertyId] = useState("");
+  const { mutateAsync: handleListingMsg } = useGenerateListingMsg();
+  const { mutateAsync: handleCreatePropertyForSigning } = useCreatePropertyWithSigning()
+  const { mutateAsync: handleCreateProperty, isPending: isCreatingProperty } = useCreateProperty();
+  const [txHash, setTxHash] = useState("");
+  // const{mutateAsync:handleStartList}=useHandleStartListing()
   // React Query mutation
 
 
+  const handleCreatePropertyClick = async () => {
+    try {
+      // Generate a property ID greater than 1
+      const newPropertyId = generatePropertyId();
 
-  
-  const handleSubmit=async ()=>{
-    try{
-        const tx= await handleListingMsg({
-            name:name,
-            image:image,
-            rentPrice:rentPrice,
-            rentSecurity:rentSecurity,
-            bookingPrice:bookingPrice,
-            bookingSecurity:bookingSecurity,
-            currentLocation:location
-        })
-        handleList(tx)
-    }catch(error){
-        console.error("error")
+      const result = await handleCreateProperty({
+        to: "0xd81252d06C67A2f3cF3B377d9Aae5d827f14f3b1",
+        propertyId: newPropertyId
+      });
+
+      if (result.success) {
+        console.log("Property created successfully:", result.data);
+        handleCreate(result.data.msg);
+        setPropertyId(newPropertyId); // Set the generated property ID for use in listing
+      } else {
+        console.error("Failed to create property:", result.message);
+      }
+    } catch (error) {
+      console.error("Error creating property:", error);
     }
   }
 
-  const handleList = (listMsg:any) => {
+  const handleCreate = async (swapMsg: TxResult) => {
     try {
-        const hash = await handleStartList({
-            msg:listMsg
-        })
-        setTxhash(hash);
-    }catch(error){
-        console.error("error",error);
+      const hash = await handleCreatePropertyForSigning({
+        msg: swapMsg,
+      });
+      setTxHash(hash);
+      console.log("Swap Initiated:", hash);
+
+
+    } catch (error) {
+      console.error("Swap failed:", error);
     }
-    
-
-
   };
 
+
+  const handleSubmit = async () => {
+
+
+    // need id here
+    const propertyId = ""
+
+    try {
+      const tx = await handleListingMsg({
+        propertyId: Math.random().toString(),
+        name: name,
+        image: image,
+        rentPrice: rentPrice,
+        rentSecurity: rentSecurity,
+        bookingPrice: bookingPrice,
+        bookingSecurity: bookingSecurity,
+        currentLocation: location
+      })
+
+      // handleList(tx)
+    } catch (error) {
+      console.error("error")
+    }
+  }
+
+  // const handleList = async (listMsg:any) => {
+  //   try {
+  //       const hash = await handleStartList({
+  //           msg:listMsg
+  //       })
+  //       setTxhash(hash);
+  //   }catch(error){
+  //       console.error("error",error);
+  //   }
+
+
+
+  // };
+
   return (
-    <Card className="rounded-2xl border-2 border-sky-500/30 bg-black/30 text-white shadow-md shadow-sky-500/20 backdrop-blur transition p">
+    <Card className="rounded-2xl border-2 border-sky-500/30 bg-black/30 text-white shadow-md shadow-sky-500/20 backdrop-blur transition hover:bg-sky-500/20 hover:border-sky-500 p-4">
       <CardHeader>
         <CardTitle className="text-xl font-semibold text-sky-400">
           Create Listing
         </CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* Form fields here (same as your original code) */}
-        <div className="md:col-span-2">
+        <div className="space-y-2">
+          <Label htmlFor="name">Name</Label>
+          <Input
+            id="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="rounded-xl bg-black/50 border-sky-500/30 focus:border-sky-500 focus:ring-sky-500 transition"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="image">Image URL</Label>
+          <Input
+            id="image"
+            value={image}
+            onChange={(e) => setImage(e.target.value)}
+            className="rounded-xl bg-black/50 border-sky-500/30 focus:border-sky-500 focus:ring-sky-500 transition"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="rentPrice">Rent Price</Label>
+          <Input
+            id="rentPrice"
+            type="number"
+            value={rentPrice}
+            onChange={(e) => setRentPrice(Number(e.target.value || 0))}
+            className="rounded-xl bg-black/50 border-sky-500/30 focus:border-sky-500 focus:ring-sky-500 transition"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="rentSecurity">Rent Security</Label>
+          <Input
+            id="rentSecurity"
+            type="number"
+            value={rentSecurity}
+            onChange={(e) => setRentSecurity(Number(e.target.value || 0))}
+            className="rounded-xl bg-black/50 border-sky-500/30 focus:border-sky-500 focus:ring-sky-500 transition"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="bookingPrice">Booking Price</Label>
+          <Input
+            id="bookingPrice"
+            type="number"
+            value={bookingPrice}
+            onChange={(e) => setBookingPrice(Number(e.target.value || 0))}
+            className="rounded-xl bg-black/50 border-sky-500/30 focus:border-sky-500 focus:ring-sky-500 transition"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="bookingSecurity">Booking Security</Label>
+          <Input
+            id="bookingSecurity"
+            type="number"
+            value={bookingSecurity}
+            onChange={(e) => setBookingSecurity(Number(e.target.value || 0))}
+            className="rounded-xl bg-black/50 border-sky-500/30 focus:border-sky-500 focus:ring-sky-500 transition"
+          />
+        </div>
+        <div className="md:col-span-2 space-y-2">
+          <Label htmlFor="location">Current Location</Label>
+          <Input
+            id="location"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            className="rounded-xl bg-black/50 border-sky-500/30 focus:border-sky-500 focus:ring-sky-500 transition"
+          />
+        </div>
+        <div className="md:col-span-2 space-y-2">
+          <Button
+            onClick={handleCreatePropertyClick}
+            disabled={isCreatingProperty}
+            className="w-full rounded-xl bg-green-600 text-white hover:bg-green-500 transition shadow-md shadow-green-500/40"
+          >
+            {isCreatingProperty ? "Creating Property..." : "Create Property"}
+          </Button>
           <Button
             onClick={handleSubmit}
             className="w-full rounded-xl bg-sky-600 text-white hover:bg-sky-500 transition shadow-md shadow-sky-500/40"
@@ -96,4 +208,5 @@ export function ListingForm() {
       </CardContent>
     </Card>
   );
+
 }
