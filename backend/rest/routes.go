@@ -118,6 +118,7 @@ func SetupRoutes(privateKey string, r *gin.Engine) {
 
 		v1.POST("/create-property", token.CreateMintMessage)
 		v1.POST("/create-listing", token.CreateListing)
+		v1.GET("/properties", token.GetProperties)
 
 		// Image serving endpoint
 		v1.Static("/images", "./uploads/images")

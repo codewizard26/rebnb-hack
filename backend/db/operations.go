@@ -447,3 +447,19 @@ func (c *Client) UpdateListing(ctx context.Context, propertyID, date string, upd
 
 	return nil
 }
+
+func (c *Client) GetProperties(ctx context.Context) ([]Property, error) {
+	collection := c.GetCollection("properties")
+	cursor, err := collection.Find(ctx, bson.D{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to find properties: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var properties []Property
+	if err := cursor.All(ctx, &properties); err != nil {
+		return nil, fmt.Errorf("failed to decode properties: %w", err)
+	}
+
+	return properties, nil
+}

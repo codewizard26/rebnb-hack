@@ -1245,3 +1245,17 @@ func GetMetadataForListing(c *gin.Context) {
 
 	http.Redirect(c.Writer, c.Request, "https://pink-improved-swift-480.mypinata.cloud/ipfs/"+property.IPFSHash, http.StatusFound)
 }
+
+func GetProperties(c *gin.Context) {
+
+	properties, err := db.MongoClient.GetProperties(context.TODO())
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Properties not found: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, properties)
+
+}
