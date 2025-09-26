@@ -14,7 +14,6 @@ export default function ListPage() {
         <div className="flex min-h-dvh flex-col">
             <Navbar />
             <main className="mx-auto flex w-full max-w-none flex-1 gap-6 px-4 py-6">
-                <Sidebar />
                 <div className="flex-1 space-y-6">
                     <ListingForm />
                     {/* {listings.length > 0 && (
