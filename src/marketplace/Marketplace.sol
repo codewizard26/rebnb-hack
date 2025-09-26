@@ -150,7 +150,7 @@ contract Marketplace is Ownable {
         listings[propertyId][date] = listing;
 
         // Add the current owner to the listing splits after deducting the security deposit as its already transafered to token owner
-        listingSplits[propertyId][date].push(ListingSplit({receiver: token_owner, amount: splitAmount}));
+        listingSplits[propertyId][date].push(ListingSplit({receiver: token_owner, amount: listing.rentPrice}));
 
         // Update listing with new rent price and security deposit
         _updateListing(propertyId, date, updateParams);
@@ -225,13 +225,13 @@ contract Marketplace is Ownable {
             // Transfer amount to renter
             bool success = payable(booking.receiver).send(amountToSplit);
             require(success, "Transfer failed");
-            emit SettlePayment(booking.receiver, propertyId, date, expected_current, amountToSplit);
+            emit SettlePayment(booking.receiver, propertyId, date, amountToSplit);
             // Transfer fee to owner
             success = payable(owner()).send(fee);
             require(success, "Transfer failed");
             emit SettleFee(booking.receiver, propertyId, date, fee);
         } else {
-            emit SettlePayment(booking.receiver, propertyId, date, expected_current, 0);
+            emit SettlePayment(booking.receiver, propertyId, date, 0);
             emit SettleFee(booking.receiver, propertyId, date, 0);
         }
     }
@@ -247,9 +247,7 @@ contract Marketplace is Ownable {
         dateToken.transferFrom(msg.sender, booking.receiver, date);
     }
 
-    event SettlePayment(
-        address indexed receiver, uint256 indexed propertyId, uint256 indexed date, uint256 expected, uint256 amount
-    );
+    event SettlePayment(address indexed receiver, uint256 indexed propertyId, uint256 indexed date, uint256 amount);
 
     event SettleSecurity(address indexed receiver, uint256 indexed propertyId, uint256 indexed date, uint256 amount);
 

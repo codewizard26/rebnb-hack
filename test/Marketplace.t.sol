@@ -2,6 +2,9 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
+
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+
 import {Marketplace} from "../src/marketplace/Marketplace.sol";
 import {TokenizedProperty} from "../src/rwa/TokenizedProperty.sol";
 import {TokenizedPropertyDate} from "../src/rwa/TokenizedPropertyDate.sol";
@@ -11,6 +14,8 @@ import {ITokenizedPropertyDate} from "../src/rwa/ITokenizedPropertyDate.sol";
 import {IERC721Errors} from "../lib/openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol";
 
 contract MarketplaceTest is Test {
+    using Strings for *;
+
     Marketplace marketplace;
     TokenizedProperty propertyToken;
     address owner = vm.randomAddress();
@@ -26,7 +31,11 @@ contract MarketplaceTest is Test {
         vm.warp(1727347200);
         vm.prank(owner);
         // Deploy property token with required constructor args
-        propertyToken = new TokenizedProperty("TestProperty", "TPROP", "https://base.uri/");
+        propertyToken = new TokenizedProperty(
+            "TestProperty",
+            "TPROP",
+            "https://api.rebnb.sumitdhiman.in/metadata/"
+        );
         vm.prank(owner);
         // Deploy marketplace with property token address
         marketplace = new Marketplace(address(propertyToken));
@@ -36,6 +45,22 @@ contract MarketplaceTest is Test {
         // Mint a property token to owner
         vm.prank(owner);
         propertyToken.mint(owner, propertyId);
+    }
+
+    function testTokenURI() public view {
+        assertEq(
+            propertyToken.baseURI(),
+            "https://api.rebnb.sumitdhiman.in/metadata/"
+        );
+        assertEq(
+            ITokenizedPropertyDate(propertyToken.date_token(propertyId))
+                .baseURI(),
+            "https://api.rebnb.sumitdhiman.in/metadata/1/"
+        );
+        assertEq(
+            propertyToken.tokenURI(propertyId),
+            "https://api.rebnb.sumitdhiman.in/metadata/1"
+        );
     }
 
     function testCreateListing() public {
@@ -49,6 +74,14 @@ contract MarketplaceTest is Test {
             0.1 ether, // rentSecurity
             2 ether, // bookingPrice
             0.2 ether // bookingSecurity
+        );
+        assertEq(
+            TokenizedPropertyDate(propertyToken.date_token(propertyId))
+                .tokenURI(date),
+            string.concat(
+                "https://api.rebnb.sumitdhiman.in/metadata/1/",
+                date.toString()
+            )
         );
         // Add assertion for listing existence
         Marketplace.Listing memory listing = marketplace.getListing(propertyId, date);

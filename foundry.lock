@@ -10,5 +10,8 @@
       "name": "v5.4.0",
       "rev": "c64a1edb67b6e3f4a15cca8909c9482ad33a02b0"
     }
+  },
+  "lib/self": {
+    "rev": "15a84e1c709e03b354c67ba341ae18d34daa4bdc"
   }
 }

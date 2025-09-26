@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Gauge, Repeat, BadgeCheck, Settings, Menu } from "lucide-react";
+import { Home, Gauge, Repeat, BadgeCheck, Settings, Menu , List } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
@@ -12,6 +12,7 @@ const items = [
     { href: "/rerent/p1", label: "Re-Rent", icon: Repeat },
     { href: "/nft", label: "My NFTs", icon: BadgeCheck },
     { href: "/settings", label: "Settings", icon: Settings },
+    { href: "/list", label: "Create List", icon: List },
 ];
 
 function SidebarLinks() {
