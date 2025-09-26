@@ -31,6 +31,8 @@ func SetupRoutes(privateKey string, r *gin.Engine) {
 	if err != nil {
 		log.Printf("⚠️  Failed to initialize MongoDB client: %v", err)
 		log.Println("MongoDB endpoints will be disabled")
+		// Set a default empty client to avoid nil pointer issues
+		db.MongoClient = db.Client{}
 	} else {
 		log.Printf("🔍 MongoDB client initialized successfully")
 
@@ -119,6 +121,7 @@ func SetupRoutes(privateKey string, r *gin.Engine) {
 		v1.POST("/create-property", token.CreateMintMessage)
 		v1.POST("/create-listing", token.CreateListing)
 		v1.GET("/properties", token.GetProperties)
+		v1.GET("/lists/:property_id", token.GetListingsByPropertyHandler)
 
 		// Image serving endpoint
 		v1.Static("/images", "./uploads/images")

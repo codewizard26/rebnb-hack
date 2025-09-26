@@ -217,6 +217,14 @@ func pinJSONToIPFS(data interface{}) (string, error) {
 }
 
 func CreateListing(c *gin.Context) {
+	// Check if MongoDB client is initialized
+	if db.MongoClient.Client == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Database connection not available",
+		})
+		return
+	}
+
 	var request ListingRequest
 
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -1220,6 +1228,14 @@ func CreateMintMessage(c *gin.Context) {
 }
 
 func GetMetadataForListing(c *gin.Context) {
+	// Check if MongoDB client is initialized
+	if db.MongoClient.Client == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Database connection not available",
+		})
+		return
+	}
+
 	propertyId := c.Param("property_id")
 	if propertyId == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -1227,26 +1243,34 @@ func GetMetadataForListing(c *gin.Context) {
 		})
 		return
 	}
+
 	date := c.Param("date")
-	if propertyId == "" {
+	if date == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Property ID is required",
+			"error": "Date is required",
 		})
 		return
 	}
 
-	property, err := db.MongoClient.GetListingByPropertyAndDate(context.TODO(), propertyId, date)
+	listing, err := db.MongoClient.GetListingByPropertyAndDate(context.TODO(), propertyId, date)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Property not found: " + err.Error(),
+			"error": "Listing not found: " + err.Error(),
 		})
 		return
 	}
 
-	http.Redirect(c.Writer, c.Request, "https://pink-improved-swift-480.mypinata.cloud/ipfs/"+property.IPFSHash, http.StatusFound)
+	http.Redirect(c.Writer, c.Request, "https://pink-improved-swift-480.mypinata.cloud/ipfs/"+listing.IPFSHash, http.StatusFound)
 }
 
 func GetProperties(c *gin.Context) {
+	// Check if MongoDB client is initialized
+	if db.MongoClient.Client == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Database connection not available",
+		})
+		return
+	}
 
 	properties, err := db.MongoClient.GetProperties(context.TODO())
 	if err != nil {
@@ -1257,5 +1281,37 @@ func GetProperties(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, properties)
+}
+func GetListingsByPropertyHandler(c *gin.Context) {
+	// Check if MongoDB client is initialized
+	if db.MongoClient.Client == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Database connection not available",
+		})
+		return
+	}
 
+	propertyId := c.Param("property_id")
+	if propertyId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Property ID is required",
+		})
+		return
+	}
+
+	lists, err := db.MongoClient.GetListingsByProperty(context.TODO(), propertyId)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Listings not found: " + err.Error(),
+		})
+		return
+	}
+	if len(lists) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Listings not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, lists)
 }
