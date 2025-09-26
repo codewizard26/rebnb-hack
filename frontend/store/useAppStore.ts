@@ -15,16 +15,14 @@ export type Booking = {
 };
 
 export type Listing = {
-    id: string;
-    title: string;
-    description: string;
-    city: string;
-    type: "apartment" | "house" | "studio";
-    rent: number;
-    deposit: number;
-    image: string;
-    startDate?: number;
-    endDate?: number;
+  id: string;
+  name: string;
+  image: string;
+  rentPrice: number;
+  rentSecurity: number;
+  bookingPrice: number;
+  bookingSecurity: number;
+  currentLocation: string;
 };
 
 type AppState = {
