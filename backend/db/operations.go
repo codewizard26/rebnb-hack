@@ -173,9 +173,9 @@ func (c *Client) SeedInitialData(ctx context.Context) error {
 	if chainCount == 0 {
 		chains := []interface{}{
 			Chain{
-				Chain:     "unichain",
-				RPC:       "https://sepolia.unichain.org",
-				ChainID:   "1301",
+				Chain:     "0g",
+				RPC:       "https://evmrpc-testnet.0g.ai",
+				ChainID:   "16601",
 				CreatedAt: now,
 				UpdatedAt: now,
 			},

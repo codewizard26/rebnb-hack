@@ -92,7 +92,7 @@ type TransactionReceipt struct {
 // GetReceiptRequest represents the request for getting a transaction receipt
 type GetReceiptRequest struct {
 	TransactionHash string `json:"transaction_hash" binding:"required"`
-	ChainName       string `json:"chain_name,omitempty"` // defaults to "unichain"
+	ChainName       string `json:"chain_name,omitempty"` // defaults to "0g"
 }
 
 // GetReceiptResponse represents the response for getting a transaction receipt
@@ -366,7 +366,7 @@ func CreateListing(c *gin.Context) {
 	}
 
 	// Get chain configuration
-	chain, err := GetChain("unichain")
+	chain, err := GetChain("0g")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to get chain configuration: " + err.Error(),
@@ -1162,7 +1162,7 @@ func CreateMintMessage(c *gin.Context) {
 	}
 
 	// Get chain and contract configuration
-	chain, err := GetChain("unichain")
+	chain, err := GetChain("0g")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, MintWithIPFSResponse{
 			Error: "Failed to get chain: " + err.Error(),
