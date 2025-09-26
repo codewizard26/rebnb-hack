@@ -61,8 +61,3 @@ export interface ValidationResult {
   [key: string]: any;
   error?: string;
 }
-
-export interface HederaConfig {
-  accountId: string;
-  privateKey: string;
-}

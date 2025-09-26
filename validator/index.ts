@@ -45,13 +45,13 @@ async function testValidators() {
     // Test image validation
     console.log("=== Testing Image Validation ===");
     await validator.validateImage(
-      "https://drive.google.com/uc?export=view&id=13YMcpVKiXP4IqRFQUgrjEciYY1fq9fMF", 
+      "https://drive.usercontent.google.com/download?id=13YMcpVKiXP4IqRFQUgrjEciYY1fq9fMF&export=view&authuser=0", 
       "Validate this property listing image"
     );
 
     // Test text validation
     console.log("\n=== Testing Text Validation ===");
-    await validator.validateText("A 2BHK room set with funitures included only for 50000");
+    await validator.validateText("Beautiful 2BHK apartment with modern amenities, located in downtown area. Rent: $10000/month");
   } finally {
     validator.close();
   }

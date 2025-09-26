@@ -1,24 +1,11 @@
 // Validator.ts
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { AgentExecutor, createToolCallingAgent } from 'langchain/agents';
-import { Client, PrivateKey } from '@hashgraph/sdk';
-import { HederaLangchainToolkit, coreAccountPlugin } from 'hedera-agent-kit';
 import { image_system_prompt, text_system_prompt } from './system_prompt';
 import { createLLM, ValidationResult } from './sharedUtils';
 
 export class Validator {
-  private client: Client | null = null;
-
   constructor() {
-    // Initialize Hedera client
-    if (!process.env.HEDERA_ACCOUNT_ID || !process.env.HEDERA_PRIVATE_KEY) {
-      throw new Error("HEDERA_ACCOUNT_ID or HEDERA_PRIVATE_KEY not found in environment variables");
-    }
-
-    this.client = Client.forTestnet().setOperator(
-      process.env.HEDERA_ACCOUNT_ID!,
-      PrivateKey.fromStringECDSA(process.env.HEDERA_PRIVATE_KEY!),
-    );
+    // No initialization needed for OpenAI-only setup
   }
 
   /**
@@ -32,24 +19,12 @@ export class Validator {
     console.log(`📷 Image input: ${imageInput}`);
     console.log(`📝 Text prompt: ${textPrompt}`);
 
-    if (!this.client) {
-      throw new Error("Hedera client not initialized");
-    }
-
     // Initialize AI model
     const llm = createLLM();
-
-    const hederaAgentToolkit = new HederaLangchainToolkit({
-      client: this.client,
-      configuration: {
-        plugins: [coreAccountPlugin],
-      },
-    });
 
     // Build prompt template for multimodal input
     const prompt = ChatPromptTemplate.fromMessages([
       ["system", image_system_prompt],
-      ["placeholder", "{chat_history}"],
       [
         "human",
         [
@@ -62,44 +37,28 @@ export class Validator {
           },
         ],
       ],
-      ["placeholder", "{agent_scratchpad}"],
     ]);
 
-    // Tools from Hedera toolkit
-    const tools = hederaAgentToolkit.getTools();
-
-    // Create agent + executor
-    const agent = createToolCallingAgent({
-      llm,
-      tools,
-      prompt,
-    });
-
-    const agentExecutor = new AgentExecutor({
-      agent,
-      tools,
-      verbose: true,
-    });
-
-    // Run the agent with image input
+    // Run the validation directly with the LLM
     console.log("🤖 Running image validation...");
     try {
-      const response = await agentExecutor.invoke({
-        input: textPrompt,
-        image_url: `${imageInput}`,
-        chat_history: [],
-      });
+      const response = await llm.invoke(
+        await prompt.format({
+          input: textPrompt,
+          image_url: imageInput,
+        })
+      );
 
       console.log("\n✅ Image Validation Result:");
-      console.log("Raw Output:", response.output);
+      console.log("Raw Output:", response.content);
 
       try {
-        const parsedOutput = JSON.parse(response.output);
+        const parsedOutput = JSON.parse(response.content as string);
         console.log("Parsed JSON Output:", parsedOutput);
         return parsedOutput;
       } catch (parseError) {
         console.error("❌ Failed to parse LLM output as JSON:", parseError);
-        console.error("Malformed JSON received:", response.output);
+        console.error("Malformed JSON received:", response.content);
         return { error: "Failed to parse JSON response" };
       }
     } catch (error) {
@@ -129,62 +88,34 @@ export class Validator {
     console.log("🔍 Text Validator Starting...");
     console.log(`📝 Text input: ${textInput}`);
 
-    if (!this.client) {
-      throw new Error("Hedera client not initialized");
-    }
-
     // Initialize AI model
     const llm = createLLM();
-
-    const hederaAgentToolkit = new HederaLangchainToolkit({
-      client: this.client,
-      configuration: {
-        plugins: [coreAccountPlugin],
-      },
-    });
 
     // Build prompt template for text-only validation
     const prompt = ChatPromptTemplate.fromMessages([
       ["system", text_system_prompt],
-      ["placeholder", "{chat_history}"],
       ["human", "Validate this text: {input}"],
-      ["placeholder", "{agent_scratchpad}"],
     ]);
 
-    // Tools from Hedera toolkit
-    const tools = hederaAgentToolkit.getTools();
-
-    // Create agent + executor
-    const agent = createToolCallingAgent({
-      llm,
-      tools,
-      prompt,
-    });
-
-    const agentExecutor = new AgentExecutor({
-      agent,
-      tools,
-      verbose: true,
-    });
-
-    // Run the agent with text input
+    // Run the validation directly with the LLM
     console.log("🤖 Running text validation...");
     try {
-      const response = await agentExecutor.invoke({
-        input: textInput,
-        chat_history: [],
-      });
+      const response = await llm.invoke(
+        await prompt.format({
+          input: textInput,
+        })
+      );
 
       console.log("\n✅ Text Validation Result:");
-      console.log("Raw Output:", response.output);
+      console.log("Raw Output:", response.content);
 
       try {
-        const parsedOutput = JSON.parse(response.output);
+        const parsedOutput = JSON.parse(response.content as string);
         console.log("Parsed JSON Output:", parsedOutput);
         return parsedOutput;
       } catch (parseError) {
         console.error("❌ Failed to parse LLM output as JSON:", parseError);
-        console.error("Malformed JSON received:", response.output);
+        console.error("Malformed JSON received:", response.content);
         return { error: "Failed to parse JSON response" };
       }
     } catch (error) {
@@ -194,17 +125,9 @@ export class Validator {
   }
 
   /**
-   * Closes the Hedera client connection
+   * Closes any connections (no-op for OpenAI-only setup)
    */
   close(): void {
-    if (this.client) {
-      this.client.close();
-      console.log("Hedera client closed.");
-      this.client = null;
-    }
+    console.log("Validator closed.");
   }
 }
-
-// Export individual functions for backward compatibility
-export { validateImage } from './imageValidator';
-export { validateText } from './chatValidator';
