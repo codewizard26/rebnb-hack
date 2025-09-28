@@ -2,6 +2,8 @@
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { image_system_prompt, text_system_prompt } from './system_prompt';
 import { createLLM, ValidationResult, extractJsonFromMarkdown } from './sharedUtils';
+import { ChatOpenAI } from "@langchain/openai";
+import { HumanMessage } from "@langchain/core/messages";
 
 export class Validator {
   constructor() {
@@ -16,36 +18,44 @@ export class Validator {
     console.log("🔍 Image Validator Starting...");
     console.log(`📷 Image input: ${imageInput}`);
     console.log(`📝 Text prompt: ${textPrompt}`);
+    
+    // Test URL accessibility
+    try {
+      const testResponse = await fetch(imageInput, { method: 'HEAD' });
+      console.log(`🔗 URL accessibility test: ${testResponse.status} for ${imageInput}`);
+    } catch (error) {
+      console.error(`❌ URL accessibility test failed: ${error}`);
+    }
 
-    // Initialize AI model
-    const llm = createLLM();
+    // Initialize AI model directly
+    const model = new ChatOpenAI({
+      model: "gpt-4o",
+      temperature: 0,
+    });
 
-    // Build prompt template for multimodal input
-    const prompt = ChatPromptTemplate.fromMessages([
-      ["system", image_system_prompt],
-      [
-        "human",
-        [
-          { type: "text", text: "{input}" },
-          { 
-            type: "image_url", 
-            image_url: { 
-              url: "{image_url}" 
-            } 
-          },
-        ],
-      ],
-    ]);
+    // Create the validation prompt
+    const validationPrompt = `${image_system_prompt}
 
-    // Run the validation directly with the LLM
+Please validate this image for a property listing. ${textPrompt}
+
+Return your response in the following JSON format:
+{
+  "validation_status": "PASS" | "FAIL" | "REVIEW_REQUIRED",
+  "reasoning_summary": "Brief explanation of your validation decision",
+  "image_check": "PASS" | "FAIL" | "NA"
+}`;
+
+    // Run the validation using direct ChatOpenAI approach
     console.log("🤖 Running image validation...");
     try {
-      const response = await llm.invoke(
-        await prompt.format({
-          input: textPrompt,
-          image_url: imageInput,
-        })
-      );
+      const response = await model.invoke([
+        new HumanMessage({
+          content: [
+            { type: "text", text: validationPrompt },
+            { type: "image_url", image_url: { url: imageInput } },
+          ],
+        }),
+      ]);
 
       console.log("\n✅ Image Validation Result:");
       console.log("Raw Output:", response.content);

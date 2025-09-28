@@ -1,0 +1,5 @@
+{
+	"dependencies": {
+		"next-ssr": "link:@uploadthing/react/next-ssr"
+	}
+}
